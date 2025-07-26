@@ -1,34 +1,76 @@
 import fitz  
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+import json
+import boto3
 
 class ResumeProcessor:
     def __init__(self):
-        self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=200
+        self.bedrock_runtime = boto3.client(
+            service_name='bedrock-runtime',
+            region_name='us-east-1'  # Change to your region
         )
-
+        
     def process_resume(self, pdf_path):
         try:
-            # Open PDF with PyMuPDF
+            # Extract text from PDF
             doc = fitz.open(pdf_path)
             text = ""
             
-            # Extract text from each page
             for page in doc:
                 text += page.get_text()
             
             doc.close()
             
-            # Initial analysis of resume
-            resume_analysis = {
-                'has_excel_experience': self._check_excel_experience(text),
-                'skills': self._extract_skills(text),
-                'experience': self._extract_experience(text),
-                'raw_text': text
-            }
+            # Use Claude to analyze the resume
+            prompt = f"""
+            I need you to analyze this resume for an Excel technical interview:
 
-            return resume_analysis
+            {text}
+
+            Please provide the following analysis in JSON format:
+            1. has_excel_experience: true/false - determine if the person has Excel experience
+            2. skills: extract all relevant technical skills, especially Excel-related skills
+            3. experience: extract a summary of their work experience
+            4. excel_proficiency: estimate their Excel proficiency level (Beginner, Intermediate, Advanced, Expert)
+            
+            Return ONLY valid JSON without explanation or any other text.
+            """
+            
+            response = self.bedrock_runtime.invoke_model(
+                modelId='anthropic.claude-3-sonnet-20240229-v1:0',
+                contentType='application/json',
+                accept='application/json',
+                body=json.dumps({
+                    "anthropic_version": "bedrock-2023-05-31",
+                    "max_tokens": 1024,
+                    "temperature": 0,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ]
+                })
+            )
+            
+            response_body = json.loads(response['body'].read())
+            analysis_text = response_body['content'][0]['text']
+            
+            # Parse the JSON response
+            try:
+                analysis = json.loads(analysis_text)
+                # Add the raw text to the analysis
+                analysis['raw_text'] = text
+                return analysis
+            except json.JSONDecodeError:
+                # If Claude didn't return proper JSON, create a basic structure
+                return {
+                    'has_excel_experience': False,
+                    'skills': [],
+                    'experience': "Could not extract experience",
+                    'excel_proficiency': "Unknown",
+                    'raw_text': text
+                }
 
         except Exception as e:
             raise Exception(f"Error processing resume: {str(e)}")

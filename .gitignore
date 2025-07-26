@@ -4,6 +4,7 @@ package-lock.json
 yarn.lock
 venv/
 __pycache__/
+ai-interviewer-backend/venv/
 # Environment variables
 .env
 .env.local
