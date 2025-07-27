@@ -1,13 +1,20 @@
 import fitz  
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 import json
-import boto3
+from langchain_aws import ChatBedrock
+from django.conf import settings
+import os
+
+
+
+os.environ["AWS_ACCESS_KEY_ID"] = settings.AWS_ACCESS_KEY_ID
+os.environ["AWS_SECRET_ACCESS_KEY"] = settings.AWS_SECRET_ACCESS_KEY
+
 
 class ResumeProcessor:
     def __init__(self):
-        self.bedrock_runtime = boto3.client(
-            service_name='bedrock-runtime',
-            region_name='us-east-1'  # Change to your region
+        self.llm = ChatBedrock(
+            model_id="amazon.titan-text-premier-v1:0"
         )
         
     def process_resume(self, pdf_path):

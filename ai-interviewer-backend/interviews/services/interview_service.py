@@ -1,22 +1,34 @@
 from langchain.memory import ConversationBufferMemory
-from langchain_community.chat_models import BedrockChat
+from langchain_aws import ChatBedrock
 from ..models import Interview, Candidate, InterviewQuestion
 from django.db import models
+from django.conf import settings
 import boto3
 import datetime
+import os 
+
+os.environ["AWS_ACCESS_KEY_ID"] = settings.AWS_ACCESS_KEY_ID
+os.environ["AWS_SECRET_ACCESS_KEY"] = settings.AWS_SECRET_ACCESS_KEY
+os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
+
 
 class InterviewService:
     def __init__(self):
-        self.llm = BedrockChat(
-            model_id="anthropic.claude-3-sonnet-20240229-v1:0",
-            region_name="us-east-1"  
+        self.llm = ChatBedrock(
+            model_id="amazon.titan-text-premier-v1:0"
+            # model_id="anthropic.claude-3-sonnet-20240229-v1:0"
         )
         self.memory = ConversationBufferMemory(
             memory_key="chat_history",
             return_messages=True
         )
         # Initialize Polly for voice
-        self.polly = boto3.client('polly' , region_name='us-east-1')
+        self.polly = boto3.client(
+        service_name='polly',
+        region_name=settings.AWS_DEFAULT_REGION,
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+    )
 
     async def start_interview(self, candidate_id):
         """Start a new interview session"""

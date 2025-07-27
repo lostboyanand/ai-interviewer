@@ -28,7 +28,8 @@ def register_candidate(request):
     try:
         email = request.data.get('email')
         resume = request.FILES.get('resume')
-        
+        print("Calling Bedrock (Claude) for resume analysis...")
+        print("Django AWS identity:", boto3.client("sts").get_caller_identity())
         # Check if email is provided
         if not email:
             return Response({
@@ -159,5 +160,17 @@ async def start_interview(request, candidate_id):
             'text_response': response,
             'audio_response': polly_response['AudioStream'].read()
         })
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+@api_view(['POST'])
+def delete_all_data(request):
+    try:
+        # Delete all InterviewQuestion, Interview, and Candidate records
+        from ..models import InterviewQuestion, Interview, Candidate
+        InterviewQuestion.objects.all().delete()
+        Interview.objects.all().delete()
+        Candidate.objects.all().delete()
+        return Response({'message': 'All interview data deleted.'}, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
