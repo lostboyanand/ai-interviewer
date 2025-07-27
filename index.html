@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -37,7 +36,7 @@
             font-weight: bold;
         }
         
-        input, button {
+        input, button, textarea {
             width: 100%;
             padding: 10px;
             border: 1px solid #ddd;
@@ -107,6 +106,17 @@
         .hidden {
             display: none;
         }
+
+        .file-info {
+            margin-top: 5px;
+            font-size: 0.9em;
+            color: #555;
+        }
+
+        .file-selected {
+            color: #27ae60;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -115,18 +125,21 @@
     <!-- Registration Form -->
     <div id="registrationContainer" class="container">
         <h2>Register for an Interview</h2>
-        <div class="form-group">
-            <label for="email">Email Address:</label>
-            <input type="email" id="email" placeholder="Enter your email" required>
-        </div>
-        
-        <div class="form-group">
-            <label for="resume">Upload Resume (PDF only):</label>
-            <input type="file" id="resume" accept=".pdf" required>
-        </div>
-        
-        <button id="registerButton">Register & Start Interview</button>
-        <p class="status" id="registerStatus"></p>
+        <form id="registrationForm" enctype="multipart/form-data" method="post">
+            <div class="form-group">
+                <label for="email">Email Address:</label>
+                <input type="email" id="email" name="email" placeholder="Enter your email" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="resume">Upload Resume (PDF only):</label>
+                <input type="file" id="resume" name="resume" accept=".pdf" required>
+                <div id="fileDisplay" class="file-info">No file selected</div>
+            </div>
+            
+            <button type="submit">Register & Start Interview</button>
+            <p class="status" id="registerStatus"></p>
+        </form>
     </div>
     
     <!-- Interview Chat -->
@@ -146,196 +159,281 @@
         
         <p class="status" id="interviewStatus"></p>
     </div>
-        
-        <script>
-            // Global variables
-            let candidateId = null;
-            let interviewId = null;
-            let mediaRecorder = null;
-            let audioChunks = [];
-            let isRecording = false;
-            
-            // API URL - Change this to your Django backend URL
-            const API_URL = 'http://localhost:8000/api';
-            
-            document.addEventListener('DOMContentLoaded', () => {
-                // Register event listeners
-                document.getElementById('registerButton').addEventListener('click', registerCandidate);
-                document.getElementById('recordButton').addEventListener('click', toggleRecording);
-                document.getElementById('textResponseButton').addEventListener('click', () => {
-                    document.getElementById('textResponseForm').classList.toggle('hidden');
-                });
-                document.getElementById('submitTextButton').addEventListener('click', sendTextResponse);
+    
+    <script>
+        // Global variables
+        let candidateId = null;
+        let interviewId = null;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isRecording = false;
+
+        // API URL - Change this to your Django backend URL
+        const API_URL = 'http://localhost:8000/api';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Document loaded');
+            // Update the event listener for the registration form
+            document.getElementById('registrationForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                registerCandidate();
             });
-            
-            async function registerCandidate() {
-                const emailInput = document.getElementById('email');
-                const resumeInput = document.getElementById('resume');
-                const statusElement = document.getElementById('registerStatus');
-                
-                if (!emailInput.value || !resumeInput.files[0]) {
-                    statusElement.textContent = 'Please enter your email and upload a resume.';
-                    return;
+            document.getElementById('recordButton').addEventListener('click', toggleRecording);
+            document.getElementById('textResponseButton').addEventListener('click', () => {
+                console.log('Text response button clicked');
+                document.getElementById('textResponseForm').classList.toggle('hidden');
+            });
+            document.getElementById('submitTextButton').addEventListener('click', sendTextResponse);
+
+            // File upload feedback
+            document.getElementById('resume').addEventListener('change', function(e) {
+                console.log('File input changed');
+                console.log('Files selected:', this.files);
+                console.log('Number of files:', this.files.length);
+                const fileDisplay = document.getElementById('fileDisplay');
+                if (e.target.files.length > 0) {
+                    const fileName = e.target.files[0].name;
+                    console.log('Selected file:', fileName);
+                    fileDisplay.textContent = `Selected file: ${fileName}`;
+                    fileDisplay.className = 'file-info file-selected';
+                } else {
+                    console.log('No file selected');
+                    fileDisplay.textContent = 'No file selected';
+                    fileDisplay.className = 'file-info';
                 }
-                
-                const formData = new FormData();
-                formData.append('email', emailInput.value);
-                formData.append('resume', resumeInput.files[0]);
-                
-                statusElement.textContent = 'Registering...';
-                
-                try {
-                    const response = await fetch(`${API_URL}/register/`, {
-                        method: 'POST',
-                        body: formData
-                    });
-                    
-                    const data = await response.json();
-                    console.log('Register API Response:', data);
-                    
-                    if (response.ok) {
-                        candidateId = data.candidate_id;
-                        statusElement.textContent = 'Registration successful!';
-                        // Start interview
-                        startInterview();
-                    } else {
-                        statusElement.textContent = `Error: ${data.error || data.message || 'Unknown error'}`;
+            });
+        });
+
+        async function registerCandidate() {
+            console.log('Register button clicked');
+            const emailInput = document.getElementById('email');
+            const resumeInput = document.getElementById('resume');
+            const statusElement = document.getElementById('registerStatus');
+
+            if (!emailInput.value || !resumeInput.files || resumeInput.files.length === 0) {
+                console.log('Missing email or resume');
+                statusElement.textContent = 'Please enter your email and upload a resume.';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('email', emailInput.value);
+            formData.append('resume', resumeInput.files[0]);
+
+            statusElement.textContent = 'Registering...';
+
+            try {
+                const response = await fetch(`${API_URL}/register/`, {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                console.log('Response status:', response.status);
+                const data = await response.json();
+                console.log('Register API Response:', data);
+
+                if (response.ok) {
+                    candidateId = data.candidate_id;
+                    console.log('Registration successful, candidate ID:', candidateId);
+                    statusElement.textContent = 'Registration successful!';
+                    startInterview();
+                } else {
+                    console.log('Registration error:', data.error || data.message || 'Unknown error');
+                    statusElement.textContent = `Error: ${data.error || data.message || 'Unknown error'}`;
+                }
+            } catch (error) {
+                console.error('Register API Error:', error);
+                statusElement.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        async function startInterview() {
+            console.log('Starting interview');
+            const statusElement = document.getElementById('interviewStatus');
+            statusElement.textContent = 'Starting interview...';
+
+            try {
+                const response = await fetch(`${API_URL}/interview/start/${candidateId}/`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+                console.log('Start Interview API Response:', data);
+
+                if (response.ok) {
+                    console.log('Interview started successfully');
+                    document.getElementById('registrationContainer').classList.add('hidden');
+                    document.getElementById('interviewContainer').classList.remove('hidden');
+                    document.getElementById('chatContainer').style.display = 'block';
+
+                    interviewId = data.text_response.interview_id;
+                    console.log('Interview ID:', interviewId);
+                    addMessage('interviewer', data.text_response.message);
+
+                    if (data.audio_response) {
+                        console.log('Playing audio response');
+                        playAudio(data.audio_response);
                     }
-                } catch (error) {
-                    console.error('Register API Error:', error);
-                    statusElement.textContent = `Error: ${error.message}`;
+
+                    statusElement.textContent = 'Interview started! Please record or type your responses.';
+                } else {
+                    console.log('Error starting interview:', data.error || 'Unknown error');
+                    statusElement.textContent = `Error: ${data.error || 'Unknown error'}`;
                 }
+            } catch (error) {
+                console.error('Start Interview API Error:', error);
+                statusElement.textContent = `Error: ${error.message}`;
             }
-            
-            async function startInterview() {
-                const statusElement = document.getElementById('interviewStatus');
-                statusElement.textContent = 'Starting interview...';
-                
-                try {
-                    const response = await fetch(`${API_URL}/interview/start/${candidateId}/`, {
-                        method: 'POST'
-                    });
-                    
-                    const data = await response.json();
-                    console.log('Start Interview API Response:', data);
-                    
-                    if (response.ok) {
-                        // Show interview container
-                        document.getElementById('registrationContainer').classList.add('hidden');
-                        document.getElementById('interviewContainer').classList.remove('hidden');
-                        document.getElementById('chatContainer').style.display = 'block';
-                        
-                        // Get interview ID and display first message
-                        interviewId = data.text_response.interview_id;
-                        addMessage('interviewer', data.text_response.message);
-                        
-                        // Play audio if available
-                        if (data.audio_response) {
-                            playAudio(data.audio_response);
-                        }
-                        
-                        statusElement.textContent = 'Interview started! Please record or type your responses.';
-                    } else {
-                        statusElement.textContent = `Error: ${data.error || 'Unknown error'}`;
+        }
+
+        async function sendAudioResponse(audioBlob) {
+            console.log('Sending audio response');
+            const statusElement = document.getElementById('interviewStatus');
+
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'recording.wav');
+
+            try {
+                const response = await fetch(`${API_URL}/interview/respond-audio/${interviewId}/`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                console.log('Audio Response API Response:', data);
+
+                if (response.ok) {
+                    console.log('Audio response sent successfully');
+                    addMessage('candidate', data.transcribed_text);
+                    addMessage('interviewer', data.text_response.message);
+
+                    if (data.audio_response) {
+                        console.log('Playing audio response');
+                        playAudio(data.audio_response);
                     }
-                } catch (error) {
-                    console.error('Start Interview API Error:', error);
-                    statusElement.textContent = `Error: ${error.message}`;
+
+                    statusElement.textContent = '';
+                } else {
+                    console.log('Error sending audio response:', data.error || 'Unknown error');
+                    statusElement.textContent = `Error: ${data.error || 'Unknown error'}`;
                 }
+            } catch (error) {
+                console.error('Audio Response API Error:', error);
+                statusElement.textContent = `Error: ${error.message}`;
             }
-            
-            async function sendAudioResponse(audioBlob) {
-                const statusElement = document.getElementById('interviewStatus');
-                
-                const formData = new FormData();
-                formData.append('audio', audioBlob, 'recording.wav');
-                
+        }
+
+        async function sendTextResponse() {
+            console.log('Sending text response');
+            const textInput = document.getElementById('textResponse');
+            const statusElement = document.getElementById('interviewStatus');
+
+            if (!textInput.value.trim()) {
+                console.log('Empty text response');
+                statusElement.textContent = 'Please enter a response.';
+                return;
+            }
+
+            const responseText = textInput.value.trim();
+            console.log('Text response:', responseText);
+            statusElement.textContent = 'Sending response...';
+
+            try {
+                const response = await fetch(`${API_URL}/interview/respond/${interviewId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ response: responseText })
+                });
+
+                const data = await response.json();
+                console.log('Text Response API Response:', data);
+
+                if (response.ok) {
+                    console.log('Text response sent successfully');
+                    addMessage('candidate', responseText);
+                    addMessage('interviewer', data.message);
+
+                    textInput.value = '';
+                    document.getElementById('textResponseForm').classList.add('hidden');
+
+                    statusElement.textContent = '';
+                } else {
+                    console.log('Error sending text response:', data.error || 'Unknown error');
+                    statusElement.textContent = `Error: ${data.error || 'Unknown error'}`;
+                }
+            } catch (error) {
+                console.error('Text Response API Error:', error);
+                statusElement.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        function addMessage(type, text) {
+            console.log(`Adding message of type "${type}":`, text);
+            const chatContainer = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', type);
+            messageDiv.textContent = text;
+            chatContainer.appendChild(messageDiv);
+
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        async function toggleRecording() {
+            console.log('Toggling recording');
+            const recordButton = document.getElementById('recordButton');
+            const statusElement = document.getElementById('interviewStatus');
+
+            if (!isRecording) {
+                console.log('Starting recording');
                 try {
-                    const response = await fetch(`${API_URL}/interview/respond-audio/${interviewId}/`, {
-                        method: 'POST',
-                        body: formData
-                    });
-                    
-                    const data = await response.json();
-                    console.log('Audio Response API Response:', data);
-                    
-                    if (response.ok) {
-                        // Add user's transcribed text
-                        addMessage('candidate', data.transcribed_text);
-                        
-                        // Add interviewer's response
-                        addMessage('interviewer', data.text_response.message);
-                        
-                        // Play audio response
-                        if (data.audio_response) {
-                            playAudio(data.audio_response);
-                        }
-                        
-                        statusElement.textContent = '';
-                    } else {
-                        statusElement.textContent = `Error: ${data.error || 'Unknown error'}`;
-                    }
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+
+                    mediaRecorder.ondataavailable = (e) => {
+                        console.log('Audio data available');
+                        audioChunks.push(e.data);
+                    };
+
+                    mediaRecorder.onstop = () => {
+                        console.log('Recording stopped');
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        sendAudioResponse(audioBlob);
+                    };
+
+                    mediaRecorder.start();
+                    isRecording = true;
+                    recordButton.textContent = 'Stop Recording';
+                    recordButton.classList.add('recording');
+                    statusElement.textContent = 'Recording...';
                 } catch (error) {
-                    console.error('Audio Response API Error:', error);
-                    statusElement.textContent = `Error: ${error.message}`;
+                    console.error('Recording error:', error);
+                    statusElement.textContent = `Microphone error: ${error.message}`;
                 }
+            } else {
+                console.log('Stopping recording');
+                mediaRecorder.stop();
+                isRecording = false;
+                recordButton.textContent = 'Record Response';
+                recordButton.classList.remove('recording');
+                statusElement.textContent = 'Processing your response...';
             }
-            
-            async function sendTextResponse() {
-                const textInput = document.getElementById('textResponse');
-                const statusElement = document.getElementById('interviewStatus');
-                
-                if (!textInput.value.trim()) {
-                    statusElement.textContent = 'Please enter a response.';
-                    return;
-                }
-                
-                const responseText = textInput.value.trim();
-                statusElement.textContent = 'Sending response...';
-                
-                try {
-                    const response = await fetch(`${API_URL}/interview/respond/${interviewId}/`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ response: responseText })
-                    });
-                    
-                    const data = await response.json();
-                    console.log('Text Response API Response:', data);
-                    
-                    if (response.ok) {
-                        // Add user's text
-                        addMessage('candidate', responseText);
-                        
-                        // Add interviewer's response
-                        addMessage('interviewer', data.message);
-                        
-                        // Clear input
-                        textInput.value = '';
-                        document.getElementById('textResponseForm').classList.add('hidden');
-                        
-                        statusElement.textContent = '';
-                    } else {
-                        statusElement.textContent = `Error: ${data.error || 'Unknown error'}`;
-                    }
-                } catch (error) {
-                    console.error('Text Response API Error:', error);
-                    statusElement.textContent = `Error: ${error.message}`;
-                }
-            }
-            
-            function playAudio(audioData) {
-                // Convert binary audio data to a blob URL
-                const blob = new Blob([new Uint8Array(audioData)], { type: 'audio/mp3' });
-                const url = URL.createObjectURL(blob);
-                const audio = new Audio(url);
-                audio.play();
-                
-                // Clean up the URL once the audio has played
-                audio.onended = () => URL.revokeObjectURL(url);
-            }
-        </script>
+        }
+
+        function playAudio(audioData) {
+            console.log('Playing audio');
+            const blob = new Blob([new Uint8Array(audioData)], { type: 'audio/mp3' });
+            const url = URL.createObjectURL(blob);
+            const audio = new Audio(url);
+            audio.play();
+
+            audio.onended = () => {
+                console.log('Audio playback ended');
+                URL.revokeObjectURL(url);
+            };
+        }
+    </script>
 </body>
 </html>

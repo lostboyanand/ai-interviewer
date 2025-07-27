@@ -3,8 +3,6 @@
 import os
 import sys
 
-os.environ["AWS_PROFILE"] = "poovizhi23"
-os.environ["AWS_DEFAULT_REGION"] = "us-west-2"
 
 def main():
     """Run administrative tasks."""

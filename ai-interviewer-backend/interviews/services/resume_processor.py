@@ -9,12 +9,19 @@ import os
 
 os.environ["AWS_ACCESS_KEY_ID"] = settings.AWS_ACCESS_KEY_ID
 os.environ["AWS_SECRET_ACCESS_KEY"] = settings.AWS_SECRET_ACCESS_KEY
+os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
 
 
 class ResumeProcessor:
     def __init__(self):
         self.llm = ChatBedrock(
-            model_id="amazon.titan-text-premier-v1:0"
+            model_id="amazon.titan-text-premier-v1:0",
+            model_kwargs={
+                "temperature": 0,
+                "max_tokens": 1024,
+                "stopSequences": [],
+                "topP": 1
+            }
         )
         
     def process_resume(self, pdf_path):
@@ -43,29 +50,14 @@ class ResumeProcessor:
             Return ONLY valid JSON without explanation or any other text.
             """
             
-            response = self.bedrock_runtime.invoke_model(
-                modelId='anthropic.claude-3-sonnet-20240229-v1:0',
-                contentType='application/json',
-                accept='application/json',
-                body=json.dumps({
-                    "anthropic_version": "bedrock-2023-05-31",
-                    "max_tokens": 1024,
-                    "temperature": 0,
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ]
-                })
-            )
+            response = self.llm.invoke(prompt)
             
-            response_body = json.loads(response['body'].read())
-            analysis_text = response_body['content'][0]['text']
+            # response_body = json.loads(response['body'].read())
+            # analysis_text = response_body['content'][0]['text']
             
             # Parse the JSON response
             try:
-                analysis = json.loads(analysis_text)
+                analysis = json.loads(response)
                 # Add the raw text to the analysis
                 analysis['raw_text'] = text
                 return analysis
