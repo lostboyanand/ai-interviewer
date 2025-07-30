@@ -6,6 +6,8 @@ venv/
 __pycache__/
 ai-interviewer-backend/venv/
 resumes/
+ffmpeg-7.1.1/
+ffmpeg-master-latest-win64-gpl-shared/
 # Environment variables
 .env
 .env.local

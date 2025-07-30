@@ -31,13 +31,14 @@ export class InterviewComponent implements OnInit, OnDestroy {
   isCheckComplete: boolean = false;
   isRecording: boolean = false;
   isLoading: boolean = false;
-  
+  retryCount: number = 0;
   // Face detection props
   faceDetectionInterval: any;
   isFaceDetected: boolean = false;
   facingAway: boolean = false;
   isMultipleFaces: boolean = false;
-  
+  usingCdnModels: boolean = false;
+
   // Audio recording props
   mediaRecorder?: MediaRecorder;
   audioChunks: Blob[] = [];
@@ -71,38 +72,112 @@ export class InterviewComponent implements OnInit, OnDestroy {
     }, 500);
   }
 
+  
   async startSystemCheck() {
     try {
-      // Load face-api models
-      await Promise.all([
-        faceapi.nets.tinyFaceDetector.loadFromUri('/assets/models'),
-        faceapi.nets.faceLandmark68Net.loadFromUri('/assets/models'),
-        faceapi.nets.faceRecognitionNet.loadFromUri('/assets/models')
-      ]);
+      console.log('Starting system check...');
       
+      // First, let's try to check what files exist in the assets folder
+      console.log('Checking if model path exists...');
+      try {
+        const testResponse = await fetch('/assets/models/test.txt');
+        console.log('Test response status:', testResponse.status);
+        console.log('Test response type:', testResponse.headers.get('content-type'));
+      } catch (e) {
+        console.error('Test fetch failed:', e);
+      }
+      
+      // Log model loading attempt
+      console.log('Attempting to load face-api models from /assets/models...');
+      
+      // Try loading models with individual error handling
+      try {
+        console.log('Loading tiny face detector model...');
+        await faceapi.nets.tinyFaceDetector.loadFromUri('/assets/models');
+        console.log('✅ Tiny face detector model loaded successfully');
+      } catch (e) {
+        console.error('❌ Failed to load tiny face detector model:', e);
+        // Show the raw response for debugging
+        try {
+          const response = await fetch('/assets/models/tiny_face_detector_model-weights_manifest.json');
+          const text = await response.text();
+          console.log('Raw response received:', text.substring(0, 100) + '...');
+        } catch (fetchErr) {
+          console.error('Could not fetch model file directly:', fetchErr);
+        }
+      }
+      
+      try {
+        console.log('Loading face landmark model...');
+        await faceapi.nets.faceLandmark68Net.loadFromUri('/assets/models');
+        console.log('✅ Face landmark model loaded successfully');
+      } catch (e) {
+        console.error('❌ Failed to load face landmark model:', e);
+      }
+      
+      try {
+        console.log('Loading face recognition model...');
+        await faceapi.nets.faceRecognitionNet.loadFromUri('/assets/models');
+        console.log('✅ Face recognition model loaded successfully');
+      } catch (e) {
+        console.error('❌ Failed to load face recognition model:', e);
+      }
+      
+      console.log('Face model loading attempts completed');
+      
+      // As a fallback, let's try with CDN
+      try {
+        console.log('Trying with CDN as fallback...');
+        const modelPath = 'https://justadudewhohacks.github.io/face-api.js/models';
+        await Promise.all([
+          faceapi.nets.tinyFaceDetector.loadFromUri(modelPath),
+          faceapi.nets.faceLandmark68Net.loadFromUri(modelPath),
+          faceapi.nets.faceRecognitionNet.loadFromUri(modelPath)
+        ]);
+        console.log('✅ Models loaded from CDN successfully');
+      } catch (cdnError) {
+        console.error('❌ CDN fallback also failed:', cdnError);
+      }
+        
       // Check camera
+      console.log('Starting camera check...');
       await this.checkCamera();
       
       // Check microphone
+      console.log('Starting microphone check...');
       await this.checkMicrophone();
       
       // Check network
+      console.log('Starting network check...');
       await this.checkNetwork();
       
       this.isCheckComplete = true;
-    } catch (error) {
-      console.error('System check failed:', error);
+      console.log('System check complete!');
+      this.scrollToStartButton();
+    } catch (error: unknown) {
+      console.error('System check failed with error:', error);
+      
+      // Type guard to check if error is an Error object
+      if (error instanceof Error) {
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+      } else {
+        console.error('Unknown error type:', typeof error);
+      }
     }
   }
   
   async checkCamera() {
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { width: 640, height: 480 } 
+        video: { width: 640, height: 480 },
+        audio: true
       });
       
       if (this.videoElement?.nativeElement) {
         this.videoElement.nativeElement.srcObject = this.stream;
+        this.videoElement.nativeElement.muted = true;  // Add this line to mute the element
         this.videoElement.nativeElement.onloadedmetadata = () => {
           this.videoElement.nativeElement.play();
           this.testFaceDetection();
@@ -116,20 +191,75 @@ export class InterviewComponent implements OnInit, OnDestroy {
   
   async testFaceDetection() {
     try {
-      if (!this.videoElement?.nativeElement) return;
+      if (!this.videoElement?.nativeElement) {
+        console.log('Video element not available yet');
+        return;
+      }
       
-      const detections = await faceapi.detectSingleFace(
-        this.videoElement.nativeElement, 
-        new faceapi.TinyFaceDetectorOptions()
-      );
-      
-      if (detections) {
-        this.isFaceDetected = true;
-      } else {
-        setTimeout(() => this.testFaceDetection(), 500);
+      // Add a small delay to ensure video is playing and stable
+      if (!this.isFaceDetected) {
+        console.log('Attempting face detection with improved options...');
+        
+        // Use less strict detection parameters
+        const options = new faceapi.TinyFaceDetectorOptions({ 
+          inputSize: 320, 
+          scoreThreshold: 0.3  // Lower threshold to detect faces more easily
+        });
+        
+        try {
+          const detections = await faceapi.detectSingleFace(
+            this.videoElement.nativeElement, 
+            options
+          );
+          
+          if (detections) {
+            console.log('✅ Face detected successfully!', detections);
+            this.isFaceDetected = true;
+            
+            // Draw a rectangle around the detected face to verify
+            const context = this.canvasElement.nativeElement.getContext('2d');
+            if (context) {
+              context.clearRect(0, 0, this.canvasElement.nativeElement.width, this.canvasElement.nativeElement.height);
+              context.beginPath();
+              context.lineWidth = 3;
+              context.strokeStyle = 'green';
+              context.rect(
+                detections.box.x, 
+                detections.box.y, 
+                detections.box.width, 
+                detections.box.height
+              );
+              context.stroke();
+            }
+          } else {
+            console.log('No face detected yet, retrying in 500ms...');
+            // Limit retry attempts and eventually mark as ready even without detection
+            setTimeout(() => {
+              if (!this.isFaceDetected && this.retryCount < 10) {
+                this.retryCount++;
+                this.testFaceDetection();
+              } else if (!this.isFaceDetected) {
+                console.log('Face detection timed out, continuing anyway');
+                this.isFaceDetected = true;  // Mark as detected anyway to continue
+              }
+            }, 500);
+          }
+        } catch (error) {
+          console.error('Face detection error:', error);
+          // After a few retries, mark as detected anyway to not block the user
+          if (this.retryCount > 3) {
+            console.log('Face detection had errors, continuing anyway');
+            this.isFaceDetected = true;
+          } else {
+            this.retryCount++;
+            setTimeout(() => this.testFaceDetection(), 500);
+          }
+        }
       }
     } catch (error) {
-      console.error('Face detection test error:', error);
+      console.error('Unexpected error in face detection test:', error);
+      // Don't block the user even if face detection fails completely
+      this.isFaceDetected = true;
     }
   }
   
@@ -173,39 +303,62 @@ export class InterviewComponent implements OnInit, OnDestroy {
   
   async checkNetwork() {
     try {
+      console.log('Checking network connectivity...');
       const start = Date.now();
-      await fetch('https://www.google.com/favicon.ico');
+      
+      // Use httpbin instead of Google's favicon to avoid CORS issues
+      await fetch('https://httpbin.org/status/200', { 
+        mode: 'no-cors',
+        cache: 'no-cache'
+      });
+      
       const end = Date.now();
-      
       const latency = end - start;
-      this.isNetworkReady = latency < 1000; // Less than 1 second is acceptable
       
-      if (!this.isNetworkReady) {
+      console.log(`Network latency: ${latency}ms`);
+      this.isNetworkReady = true;
+      
+      if (latency > 1000) {
+        console.warn('Network latency is high:', latency);
         alert('Your internet connection seems slow. This might affect the interview experience.');
-        // Still mark as ready to not block the user
-        this.isNetworkReady = true;
       }
     } catch (error) {
       console.error('Network check error:', error);
+      // Mark as true anyway to not block the user
+      this.isNetworkReady = true;
       alert('Network connectivity issues detected. Please check your internet connection.');
     }
   }
-  
+  scrollToStartButton() {
+    setTimeout(() => {
+      const buttonElement = document.querySelector('.check-actions');
+      if (buttonElement) {
+        buttonElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 500);
+  }
+
+
   startInterview() {
     this.isChecking = false;
     this.isStarted = true;
     this.isLoading = true;
     
     // Start the interview session with backend
-    this.http.post<any>(`http://localhost:8000/interview/start/\${this.candidateId}/`, {})
+    this.http.post<any>(`http://localhost:8000/api/interview/start/${this.candidateId}/`, {})
       .subscribe(
         response => {
           this.interviewId = response.text_response.interview_id;
           this.currentQuestion = response.text_response.message;
           this.conversationHistory.push({ role: 'assistant', content: this.currentQuestion });
           
-          // Play the audio response
-          const audioBlob = new Blob([response.audio_response], { type: 'audio/mp3' });
+          // Decode base64 audio and play
+          const binaryString = window.atob(response.audio_response);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          const audioBlob = new Blob([bytes], { type: 'audio/mp3' });
           const audioUrl = URL.createObjectURL(audioBlob);
           this.audioPlayer.nativeElement.src = audioUrl;
           this.audioPlayer.nativeElement.play();
@@ -223,6 +376,7 @@ export class InterviewComponent implements OnInit, OnDestroy {
         }
       );
   }
+  
   
   startFaceMonitoring() {
     if (!this.videoElement?.nativeElement || !this.canvasElement?.nativeElement) return;
@@ -273,23 +427,82 @@ export class InterviewComponent implements OnInit, OnDestroy {
   
   startRecording() {
     if (!this.stream) return;
-    
+  
     this.isRecording = true;
     this.audioChunks = [];
     this.transcript = '';
-    
-    this.mediaRecorder = new MediaRecorder(this.stream, { mimeType: 'audio/webm' });
-    this.mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        this.audioChunks.push(event.data);
+  
+    // Get only audio tracks from the stream
+    const audioStream = new MediaStream(this.stream.getAudioTracks());
+  
+    // Get supported MIME types
+    let options: any = {};
+    let mimeType = '';
+    console.log('Available MIME types:');
+  
+    if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+      console.log('Supported: audio/webm;codecs=opus');
+      options = { mimeType: 'audio/webm;codecs=opus' };
+      mimeType = 'audio/webm;codecs=opus';
+    } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+      console.log('Supported: audio/webm');
+      options = { mimeType: 'audio/webm' };
+      mimeType = 'audio/webm';
+    } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+      console.log('Supported: audio/mp4');
+      options = { mimeType: 'audio/mp4' };
+      mimeType = 'audio/mp4';
+    } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
+      console.log('Supported: audio/ogg');
+      options = { mimeType: 'audio/ogg' };
+      mimeType = 'audio/ogg';
+    } else {
+      console.log('No supported MIME types found, using default');
+      options = {};
+      mimeType = '';
+    }
+  
+    try {
+      console.log('Creating MediaRecorder with options:', options);
+      this.mediaRecorder = new MediaRecorder(audioStream, options);
+  
+      this.mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          this.audioChunks.push(event.data);
+        }
+      };
+  
+      this.mediaRecorder.onstop = () => {
+        this.sendAudioResponse();
+      };
+  
+      this.mediaRecorder.start();
+      console.log('MediaRecorder started successfully');
+    } catch (error) {
+      console.error('Error creating MediaRecorder:', error);
+      // Try fallback to default options if not already tried
+      if (Object.keys(options).length > 0) {
+        try {
+          console.log('Retrying MediaRecorder with default options...');
+          this.mediaRecorder = new MediaRecorder(audioStream);
+          this.mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+              this.audioChunks.push(event.data);
+            }
+          };
+          this.mediaRecorder.onstop = () => {
+            this.sendAudioResponse();
+          };
+          this.mediaRecorder.start();
+          console.log('MediaRecorder started successfully with default options');
+          return;
+        } catch (fallbackError) {
+          console.error('Fallback MediaRecorder also failed:', fallbackError);
+        }
       }
-    };
-    
-    this.mediaRecorder.onstop = () => {
-      this.sendAudioResponse();
-    };
-    
-    this.mediaRecorder.start();
+      this.isRecording = false;
+      alert('Failed to start recording. Your browser may not support this feature or the stream does not contain audio.');
+    }
   }
   
   stopRecording() {
@@ -303,11 +516,13 @@ export class InterviewComponent implements OnInit, OnDestroy {
   sendAudioResponse() {
     if (this.audioChunks.length === 0) return;
     
-    const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+    const mimeType = this.mediaRecorder?.mimeType || 'audio/webm';
+    console.log(`Using MIME type: ${mimeType}`);
+    const audioBlob = new Blob(this.audioChunks, { type: mimeType });
     const formData = new FormData();
     formData.append('audio', audioBlob);
-    
-    this.http.post<any>(`http://localhost:8000/interview/respond-audio/\${this.interviewId}/`, formData)
+    console.log('Sending audio to interview ID:', this.interviewId);
+    this.http.post<any>(`http://localhost:8000/api/interview/respond-audio/${this.interviewId}/`, formData)
       .subscribe(
         response => {
           // Update UI with transcribed text
@@ -318,9 +533,14 @@ export class InterviewComponent implements OnInit, OnDestroy {
           this.currentQuestion = response.text_response.message;
           this.conversationHistory.push({ role: 'assistant', content: this.currentQuestion });
           
-          // Play audio response
-          const responseAudioBlob = new Blob([response.audio_response], { type: 'audio/mp3' });
-          const audioUrl = URL.createObjectURL(responseAudioBlob);
+          // Decode base64 audio and play
+          const binaryString = window.atob(response.audio_response);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          const audioBlob = new Blob([bytes], { type: 'audio/mp3' });
+          const audioUrl = URL.createObjectURL(audioBlob);
           this.audioPlayer.nativeElement.src = audioUrl;
           this.audioPlayer.nativeElement.play();
           

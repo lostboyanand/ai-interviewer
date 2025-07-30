@@ -30,7 +30,7 @@ class InterviewService:
         aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
     )
 
-    async def start_interview(self, candidate_id):
+    def start_interview(self, candidate_id):
         """Start a new interview session"""
         try:
             candidate = Candidate.objects.get(id=candidate_id)
@@ -38,7 +38,8 @@ class InterviewService:
             # Create new interview
             interview = Interview.objects.create(
                 candidate=candidate,
-                status='ACTIVE'
+                status='ACTIVE',
+                current_question=0
             )
 
             # Initial greeting with context from resume
@@ -56,7 +57,8 @@ class InterviewService:
             Keep the greeting brief and natural.
             """
 
-            response = await self.llm.predict(greeting_prompt)
+            # Use predict instead of invoke for langchain models
+            response = self.llm.predict(greeting_prompt)
             
             # Store in transcript
             self._update_transcript(interview, "interviewer", response)
@@ -70,7 +72,7 @@ class InterviewService:
         except Exception as e:
             raise Exception(f"Error starting interview: {str(e)}")
 
-    async def process_response(self, interview_id, user_input):
+    def process_response(self, interview_id, user_input):
         """Process candidate's response and generate next question"""
         interview = Interview.objects.get(id=interview_id)
         
@@ -96,7 +98,7 @@ class InterviewService:
                 pass
 
         # Generate next question based on interview phase
-        next_question = await self._generate_next_question(interview)
+        next_question = self._generate_next_question(interview)
         
         # Store interviewer's question
         self._update_transcript(interview, "interviewer", next_question)
@@ -118,22 +120,22 @@ class InterviewService:
         })
         interview.save()
 
-    async def _generate_next_question(self, interview):
+    def _generate_next_question(self, interview):
         """Generate next question based on context and phase"""
         context = self.memory.load_memory_variables({})
         current_question = interview.current_question
 
         if current_question < 2:
             # Resume-based questions phase
-            return await self._generate_resume_question(interview)
+            return self._generate_resume_question(interview)
         elif current_question < 5:
             # Excel questions phase
-            return await self._generate_excel_question(interview)
+            return self._generate_excel_question(interview)
         else:
             # Complete interview
-            return await self._generate_final_feedback(interview)
+            return self._generate_final_feedback(interview)
     
-    async def _generate_resume_question(self, interview):
+    def _generate_resume_question(self, interview):
         """Generate a question based on candidate's resume"""
         candidate = interview.candidate
         resume_data = candidate.resume_analysis
@@ -158,7 +160,7 @@ class InterviewService:
         """
         
         # Generate question
-        question = await self.llm.predict(prompt)
+        question = self.llm.predict(prompt)
         
         # Record this question
         InterviewQuestion.objects.create(
@@ -170,7 +172,7 @@ class InterviewService:
         
         return question
 
-    async def _generate_excel_question(self, interview):
+    def _generate_excel_question(self, interview):
         """Generate an Excel-specific question"""
         # Load the transcript to assess performance
         transcript = interview.transcript
@@ -228,7 +230,7 @@ class InterviewService:
         """
         
         # Generate question
-        question = await self.llm.predict(prompt)
+        question = self.llm.predict(prompt)
         
         # Record this question
         InterviewQuestion.objects.create(
@@ -240,7 +242,7 @@ class InterviewService:
         
         return question
         
-    async def _generate_final_feedback(self, interview):
+    def _generate_final_feedback(self, interview):
         """Generate final feedback and complete the interview"""
         # Update interview status
         interview.status = 'COMPLETED'
@@ -267,16 +269,20 @@ class InterviewService:
         """
         
         # Generate feedback
-        feedback = await self.llm.predict(prompt)
+        feedback = self.llm.predict(prompt)
         
         # Save feedback
+        if isinstance(feedback, bytes):
+            feedback = feedback.decode('utf-8', errors='replace')
         interview.feedback = {
             'feedback_text': feedback,
             'generated_at': datetime.datetime.now().isoformat()
         }
         
         # Generate detailed report (this would be more structured)
-        detailed_report = await self._generate_detailed_report(interview)
+        detailed_report = self._generate_detailed_report(interview)
+        if isinstance(detailed_report, bytes):
+            detailed_report = detailed_report.decode('utf-8', errors='replace')
         interview.detailed_report = detailed_report
         
         # Calculate final score based on question scores
@@ -339,7 +345,7 @@ class InterviewService:
         
         return "\n".join(formatted)
 
-    async def _generate_detailed_report(self, interview):
+    def _generate_detailed_report(self, interview):
         """Generate a detailed report with scoring for each question"""
         questions = InterviewQuestion.objects.filter(interview=interview)
         
@@ -368,7 +374,7 @@ class InterviewService:
         """
         
         # Generate analysis
-        analysis = await self.llm.predict(prompt)
+        analysis = self.llm.predict(prompt)
         
         # Create structured report
         report = {
@@ -379,7 +385,7 @@ class InterviewService:
         
         return report
 
-    async def handle_silence(self, interview_id):
+    def handle_silence(self, interview_id):
         """Handle when no audio response is detected"""
         interview = Interview.objects.get(id=interview_id)
         

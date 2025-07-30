@@ -59,8 +59,9 @@
         
         <!-- Camera Preview -->
         <div class="camera-preview">
-          <video #videoElement width="640" height="480" autoplay muted></video>
-        </div>
+            <video #videoElement width="640" height="480" autoplay muted playsinline></video>
+            <canvas #canvasElement width="640" height="480"></canvas>
+          </div>
         
         <!-- Start Button -->
         <div class="check-actions">
