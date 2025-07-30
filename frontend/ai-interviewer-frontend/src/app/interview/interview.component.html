@@ -1,0 +1,164 @@
+<div class="interview-container">
+    <!-- System Check Screen -->
+    <div class="check-screen" *ngIf="isChecking">
+      <div class="check-header">
+        <h1>Interview System Check</h1>
+        <p>Let's make sure everything is working properly before we start.</p>
+      </div>
+      
+      <div class="check-content">
+        <div class="check-grid">
+          <!-- Camera Check -->
+          <div class="check-item" [class.check-success]="isCameraReady">
+            <div class="check-icon">
+              <i class="fas" [class.fa-check-circle]="isCameraReady" [class.fa-spinner]="!isCameraReady" [class.fa-spin]="!isCameraReady"></i>
+            </div>
+            <div class="check-details">
+              <h3>Camera</h3>
+              <p *ngIf="!isCameraReady">Checking your camera...</p>
+              <p *ngIf="isCameraReady">Camera is working properly!</p>
+            </div>
+          </div>
+          
+          <!-- Audio Check -->
+          <div class="check-item" [class.check-success]="isAudioReady">
+            <div class="check-icon">
+              <i class="fas" [class.fa-check-circle]="isAudioReady" [class.fa-spinner]="!isAudioReady" [class.fa-spin]="!isAudioReady"></i>
+            </div>
+            <div class="check-details">
+              <h3>Microphone</h3>
+              <p *ngIf="!isAudioReady">Please speak to check your microphone...</p>
+              <p *ngIf="isAudioReady">Microphone is working properly!</p>
+            </div>
+          </div>
+          
+          <!-- Network Check -->
+          <div class="check-item" [class.check-success]="isNetworkReady">
+            <div class="check-icon">
+              <i class="fas" [class.fa-check-circle]="isNetworkReady" [class.fa-spinner]="!isNetworkReady" [class.fa-spin]="!isNetworkReady"></i>
+            </div>
+            <div class="check-details">
+              <h3>Network Connection</h3>
+              <p *ngIf="!isNetworkReady">Checking your internet connection...</p>
+              <p *ngIf="isNetworkReady">Network connection is stable!</p>
+            </div>
+          </div>
+          
+          <!-- Face Detection Check -->
+          <div class="check-item" [class.check-success]="isFaceDetected">
+            <div class="check-icon">
+              <i class="fas" [class.fa-check-circle]="isFaceDetected" [class.fa-spinner]="!isFaceDetected" [class.fa-spin]="!isFaceDetected"></i>
+            </div>
+            <div class="check-details">
+              <h3>Face Detection</h3>
+              <p *ngIf="!isFaceDetected">Positioning your face in the camera...</p>
+              <p *ngIf="isFaceDetected">Face detected successfully!</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Camera Preview -->
+        <div class="camera-preview">
+          <video #videoElement width="640" height="480" autoplay muted></video>
+        </div>
+        
+        <!-- Start Button -->
+        <div class="check-actions">
+          <button class="btn primary" [disabled]="!isCheckComplete" (click)="startInterview()">
+            <i class="fas fa-play-circle"></i> Start Interview
+          </button>
+        </div>
+      </div>
+    </div>
+  
+    <!-- Interview Screen -->
+    <div class="interview-screen" *ngIf="isStarted">
+      <div class="interview-header">
+        <div class="candidate-info">
+          <h2>AI Interview Session</h2>
+          <p *ngIf="candidateData.name">Candidate: {{ candidateData.name }}</p>
+        </div>
+        
+        <div class="status-indicators">
+          <div class="status-item" [class.status-error]="facingAway">
+            <i class="fas" [class.fa-check-circle]="!facingAway" [class.fa-exclamation-circle]="facingAway"></i>
+            <span>Face Visible</span>
+          </div>
+          
+          <div class="status-item" [class.status-error]="isMultipleFaces">
+            <i class="fas" [class.fa-check-circle]="!isMultipleFaces" [class.fa-exclamation-circle]="isMultipleFaces"></i>
+            <span>Single Person</span>
+          </div>
+          
+          <div class="status-item" [class.status-active]="isRecording">
+            <i class="fas" [class.fa-microphone]="!isRecording" [class.fa-microphone-alt]="isRecording"></i>
+            <span>{{ isRecording ? 'Recording' : 'Mic Ready' }}</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="interview-content">
+        <div class="conversation-area">
+          <div class="conversation-history">
+            <div *ngFor="let message of conversationHistory" class="message" [class.assistant-message]="message.role === 'assistant'" [class.user-message]="message.role === 'user'">
+              <div class="message-avatar">
+                <i class="fas" [class.fa-robot]="message.role === 'assistant'" [class.fa-user]="message.role === 'user'"></i>
+              </div>
+              <div class="message-content">
+                <p>{{ message.content }}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="current-question" *ngIf="currentQuestion && isInterviewActive">
+            <h3>Current Question:</h3>
+            <p>{{ currentQuestion }}</p>
+          </div>
+          
+          <div class="transcript-area" *ngIf="transcript">
+            <h3>Your Response:</h3>
+            <p>{{ transcript }}</p>
+          </div>
+          
+          <div class="loading-indicator" *ngIf="isLoading">
+            <div class="spinner"></div>
+            <p>Processing...</p>
+          </div>
+        </div>
+        
+        <div class="video-area">
+          <div class="video-container">
+            <video #videoElement width="320" height="240" autoplay muted></video>
+            <canvas #canvasElement width="320" height="240"></canvas>
+            
+            <div class="video-overlay" *ngIf="facingAway">
+              <div class="alert-message">
+                <i class="fas fa-exclamation-triangle"></i>
+                Please face the camera
+              </div>
+            </div>
+            
+            <div class="video-overlay" *ngIf="isMultipleFaces">
+              <div class="alert-message">
+                <i class="fas fa-exclamation-triangle"></i>
+                Multiple faces detected
+              </div>
+            </div>
+          </div>
+          
+          <div class="recording-controls" *ngIf="isInterviewActive">
+            <button class="btn record" (click)="startRecording()" *ngIf="!isRecording" [disabled]="isLoading">
+              <i class="fas fa-microphone"></i> Start Recording
+            </button>
+            
+            <button class="btn stop" (click)="stopRecording()" *ngIf="isRecording" [disabled]="isLoading">
+              <i class="fas fa-stop-circle"></i> Stop Recording
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Hidden audio player for playing responses -->
+      <audio #audioPlayer></audio>
+    </div>
+  </div>

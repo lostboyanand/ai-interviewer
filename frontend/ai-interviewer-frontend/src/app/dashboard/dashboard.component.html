@@ -49,4 +49,44 @@
             </div>
         </div>
     </div>
+    <!-- Add this modal HTML at the end -->
+    <div class="modal" [class.show]="showModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Submit Your Details</h2>
+                <span class="close" (click)="closeModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="loading-overlay" *ngIf="isLoading">
+                    <div class="spinner"></div>
+                    <p class="loading-text">Please wait, we're registering and taking you to the interview page...</p>
+                </div>
+                <form [formGroup]="resumeForm" (ngSubmit)="proceedToInterview()">
+                    <div class="form-group">
+                        <label for="email">Email Address:</label>
+                        <input type="email" id="email" formControlName="email" placeholder="Enter your email">
+                        <div class="error-message" *ngIf="resumeForm.get('email')?.invalid && resumeForm.get('email')?.touched">
+                            Please enter a valid email address
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="resume">Upload Resume (PDF only, max 3MB):</label>
+                        <input type="file" id="resume" (change)="onFileSelected($event)" accept=".pdf">
+                        <div class="error-message" *ngIf="fileError">
+                            {{ fileError }}
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" class="btn secondary" (click)="closeModal()">Cancel</button>
+                        <button type="submit" class="btn primary" [disabled]="!resumeForm.valid || !selectedFile">
+                            Proceed
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop" [class.show]="showModal" (click)="closeModal()"></div>
 </div>

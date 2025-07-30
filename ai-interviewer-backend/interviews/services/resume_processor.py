@@ -57,7 +57,7 @@ class ResumeProcessor:
             
             # Parse the JSON response
             try:
-                analysis = json.loads(response)
+                analysis = json.loads(response.content if hasattr(response, 'content') else str(response))
                 # Add the raw text to the analysis
                 analysis['raw_text'] = text
                 return analysis
