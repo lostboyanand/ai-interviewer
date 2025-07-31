@@ -65,7 +65,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://ai-interviewer-inky.vercel.app",
     "https://ai-interviewer-git-main-lostboyanands-projects.vercel.app",
     "https://ai-interviewer-352iedbh2-lostboyanands-projects.vercel.app",
-    "http://localhost:4200"
+    "http://localhost:4200",
     "https://ai-interviewer-1r06.onrender.com",  
 ]
 
