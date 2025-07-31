@@ -4,8 +4,8 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "ng build && ls -la dist",
-    "watch": "ng build && mkdir -p dist/flat && cp -R dist/ai-interviewer-frontend/ai-interviewer-frontend/* dist/flat/",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },
   "private": true,
