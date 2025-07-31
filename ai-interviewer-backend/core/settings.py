@@ -28,11 +28,11 @@ SECRET_KEY = 'django-insecure-9kxqf30)(zj*@-6ah9*h^sj!%k=b@)4p%n81n=8ny=mv$bmjsc
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
-
-ALLOWED_HOSTS = ['localhost', '127.0.0.1' ,' ai-interviewer-1r06.onrender.com']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'ai-interviewer-1r06.onrender.com']
 
 
+
+CSRF_TRUSTED_ORIGINS = ['https://ai-interviewer-1r06.onrender.com']
 # Application definition
 
 INSTALLED_APPS = [
@@ -65,7 +65,8 @@ CORS_ALLOWED_ORIGINS = [
     "https://ai-interviewer-inky.vercel.app",
     "https://ai-interviewer-git-main-lostboyanands-projects.vercel.app",
     "https://ai-interviewer-352iedbh2-lostboyanands-projects.vercel.app",
-    "http://localhost:4200"  # For development
+    "http://localhost:4200"
+    "https://ai-interviewer-1r06.onrender.com",  
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -89,7 +90,8 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-
+STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
@@ -151,7 +153,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
