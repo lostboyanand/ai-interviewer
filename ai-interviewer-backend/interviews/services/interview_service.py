@@ -593,6 +593,24 @@ class InterviewService:
         Returns:
             Analysis results and recommendations
         """
+        # Enhance candidate data with their resume information
+        enhanced_candidate_data = []
+        
+        for candidate in candidate_data:
+            try:
+                # Get the interview
+                interview = Interview.objects.get(id=candidate['interview_id'])
+                # Get the candidate's resume analysis
+                resume_data = interview.candidate.resume_analysis
+                
+                # Add resume data to candidate info
+                enhanced_candidate = candidate.copy()
+                enhanced_candidate['resume_data'] = resume_data
+                enhanced_candidate_data.append(enhanced_candidate)
+            except (Interview.DoesNotExist, AttributeError, KeyError) as e:
+                # If something goes wrong, just use the original data
+                enhanced_candidate_data.append(candidate)
+                print(f"Error enhancing candidate data: {e}")
         
         analysis_prompt = f"""
         You are an AI talent matching specialist for a technical recruitment team.
@@ -602,31 +620,34 @@ class InterviewService:
         Description: {job_description}
 
         CANDIDATE DATA:
-        {json.dumps(candidate_data)}
+        {json.dumps(enhanced_candidate_data)}
 
         TASK:
-        1. Analyze the job requirements against each candidate's interview performance and skills.
-        2. IMPORTANT: Note that the interviews were primarily focused on Excel skills, but you need to extrapolate how these skills and the candidate's general aptitude might apply to the job requirements.
-        3. Look beyond just the specific technical skills tested in the interview and consider:
-        - Problem-solving approaches
-        - Communication skills
-        - Analytical thinking
-        - Learning capacity
-        - Adaptability to new technologies
-        4. Identify the TOP 3 most suitable candidates for this position (or fewer if there aren't 3 candidates).
-        5. For each recommended candidate, provide:
+        1. Analyze the job requirements and thoroughly review each candidate's data including:
+        - Their resume information (in resume_data field)
+        - Their interview performance (detailed_report)
+        - Their responses to technical questions
+        
+        2. CREATE A BALANCED ASSESSMENT that considers:
+        - Technical skills from the resume that match the job requirements
+        - Soft skills and problem-solving ability demonstrated in the interview
+        - Excel skills as an indicator of analytical capability
+        
+        3. Identify the TOP 3 most suitable candidates for this position (or fewer if there aren't 3 candidates).
+        
+        4. For each recommended candidate, provide:
         - Ranking position (1, 2, 3)
         - Candidate email
         - Interview ID
-        - Match score (percentage from 0-100%) - be realistic about the match given the difference between the interview focus and the job requirements
-        - Strength analysis (at least 3 key strengths relevant to the job requirements, not just Excel)
-        - Gap analysis (areas where candidate may need development specifically for this role)
-        - Overall recommendation with justification (2-3 sentences) that explicitly addresses their potential fit for {job_title} position
-        - Recommendation - In 2-3 sentences that incorporate:
-         * Specific skills from the candidate's profile that match the job requirements
-         * Excel skills demonstrated in the interview 
-         * Overall assessment of fit for the specific role
-         * Growth potential in the role
+        - Match score (percentage from 0-100%)
+        - Strengths (at least 3 key strengths, prioritizing skills that match the job requirements)
+        - Development areas (areas where candidate needs improvement relative to the job requirements)
+        - Recommendation - In 2-3 sentences that:
+            * Highlight specific skills from the resume that match the job requirements
+            * Note transferable skills demonstrated in the Excel interview
+            * Provide an overall assessment of fit for {job_title} position
+            * Mention potential for growth
+
         FORMAT YOUR RESPONSE AS JSON:
         {{
         "top_candidates": [
@@ -637,15 +658,14 @@ class InterviewService:
             "match_score": 85,
             "strengths": ["strength1", "strength2", "strength3"],
             "gaps": ["gap1", "gap2"],
-            "recommendation": "Balanced recommendation mentioning both Excel skills and job description skills..."
+            "recommendation": "Balanced recommendation mentioning both resume skills and interview performance..."
             }},
             ...
         ],
-        "analysis_summary": "Overall analysis of how the Excel-focused interviews provide insights for the {job_title} position..."
+        "analysis_summary": "Overall analysis connecting resume qualifications to job requirements..."
         }}
 
-        Ensure your analysis is fair, unbiased, and focused on translating the demonstrated skills during the Excel interviews to the actual {job_title} role.
-        Be realistic about match percentages given the difference between the interview focus and the job requirements.
+        Ensure your analysis gives appropriate weight to skills mentioned in the resume that directly match the job requirements, while also considering the analytical abilities demonstrated in the Excel interview.
         """
         
         response = self.llm.invoke(analysis_prompt)
@@ -653,7 +673,8 @@ class InterviewService:
         
         # Try to parse the response as JSON
         try:
-           
+            # Check if response is wrapped in code blocks
+            import re
             json_match = re.search(r'```(?:json)?\s*({.*?})\s*```', response_text, re.DOTALL)
             if json_match:
                 recommendations = json.loads(json_match.group(1))
@@ -666,7 +687,7 @@ class InterviewService:
                 "error": "Failed to parse AI response",
                 "raw_analysis": response_text
             }
-    
+        
 
     def handle_silence(self, interview_id):
         """Handle when no audio response is detected"""

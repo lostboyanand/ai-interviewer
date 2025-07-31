@@ -16,8 +16,15 @@ from concurrent.futures import ThreadPoolExecutor
 from asgiref.sync import async_to_sync
 from ..models import InterviewQuestion, Interview, Candidate ,HRUser
 from django.views.decorators.csrf import csrf_exempt
+from django.conf import settings
+import assemblyai as aai
+
 whisper_model = whisper.load_model("tiny")
 polly_client = boto3.client('polly' , region_name='us-east-1')
+os.environ["AWS_ACCESS_KEY_ID"] = settings.AWS_ACCESS_KEY_ID
+os.environ["AWS_SECRET_ACCESS_KEY"] = settings.AWS_SECRET_ACCESS_KEY
+os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
+os.environ["ASSEMBLY_AI"] = settings.ASSEMBLY_AI
 
 @api_view(['GET'])
 def test_view(request):
@@ -173,18 +180,228 @@ def smart_requirement_analysis(request):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 
+# @api_view(['POST'])
+# def process_audio_response(request, interview_id):
+#     try:
+#         ffmpeg_path = r"C:\Users\2308534\Videos\Project\ai-interviewer\ai-interviewer-backend\ffmpeg-master-latest-win64-gpl-shared\ffmpeg-master-latest-win64-gpl-shared\bin"
+#         os.environ["PATH"] = os.environ["PATH"] + os.pathsep + ffmpeg_path
+#         audio_file = request.FILES.get('audio')
+#         if not audio_file:
+#             return Response({
+#                 'error': 'Audio file is required'
+#             }, status=status.HTTP_400_BAD_REQUEST)
+#         content_type = audio_file.content_type
+#         print(f"Received audio with content type: {content_type}")
+#         if 'webm' in content_type:
+#             suffix = '.webm'
+#         elif 'ogg' in content_type:
+#             suffix = '.ogg'
+#         elif 'mp4' in content_type:
+#             suffix = '.mp4'
+#         else:
+#             suffix = '.wav'  # Default
+#         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_audio:
+#             for chunk in audio_file.chunks():
+#                 temp_audio.write(chunk)
+#             temp_audio_path = temp_audio.name
+#         try:
+#             print(f"Transcribing audio file: {temp_audio_path}")
+#             result = whisper_model.transcribe(temp_audio_path ,
+#                                             language="en",  
+#                                             fp16=False,    
+#                                             beam_size=1 )
+#             transcribed_text = result["text"].strip()
+#             service = InterviewService()
+#             if not transcribed_text:
+#                 response = service.handle_silence(interview_id)
+#             else:
+#                 response = service.process_response(interview_id, transcribed_text)
+#             # Check if interview is complete
+            
+#             interview = Interview.objects.get(id=interview_id)
+#             polly_response = polly_client.synthesize_speech(
+#                 Text=response['message'],
+#                 OutputFormat='mp3',
+#                 VoiceId='Joanna',
+#                 Engine='standard'
+#             )
+#             import base64
+#             audio_data = polly_response['AudioStream'].read()
+#             encoded_audio = base64.b64encode(audio_data).decode('ascii')
+#             return Response({
+#                 'text_response': response,
+#                 'audio_response': encoded_audio,
+#                 'transcribed_text': transcribed_text if transcribed_text else "No speech detected",
+#                 'interview_complete': interview.interview_complete
+#             })
+#         finally:
+#             os.unlink(temp_audio_path)
+#     except Exception as e:
+#         import traceback
+#         print(traceback.format_exc())
+#         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+# @api_view(['POST'])
+# def process_audio_response(request, interview_id):
+#     try:
+#         audio_file = request.FILES.get('audio')
+#         if not audio_file:
+#             return Response({
+#                 'error': 'Audio file is required'
+#             }, status=status.HTTP_400_BAD_REQUEST)
+        
+#         content_type = audio_file.content_type
+#         print(f"Received audio with content type: {content_type}")
+        
+#         # Determine file suffix
+#         if 'webm' in content_type:
+#             suffix = '.webm'
+#         elif 'ogg' in content_type:
+#             suffix = '.ogg'
+#         elif 'mp4' in content_type:
+#             suffix = '.mp4'
+#         else:
+#             suffix = '.wav'  # Default
+        
+#         # Save file temporarily
+#         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_audio:
+#             for chunk in audio_file.chunks():
+#                 temp_audio.write(chunk)
+#             temp_audio_path = temp_audio.name
+        
+#         try:
+#             # Create AWS Transcribe client
+#             transcribe_client = boto3.client(
+#                 'transcribe',
+#                 region_name=settings.AWS_DEFAULT_REGION,
+#                 aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+#                 aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+#             )
+            
+#             # Upload audio file to S3 (necessary for transcription)
+#             s3_client = boto3.client(
+#                 's3',
+#                 region_name=settings.AWS_DEFAULT_REGION,
+#                 aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+#                 aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+#             )
+            
+#             # Generate a unique filename for S3
+#             import uuid
+#             s3_filename = f"audio-{uuid.uuid4()}{suffix}"
+#             bucket_name = settings.AWS_STORAGE_BUCKET_NAME  # Make sure this is defined in settings
+            
+#             # Upload to S3
+#             s3_client.upload_file(
+#                 temp_audio_path, 
+#                 bucket_name, 
+#                 s3_filename
+#             )
+            
+#             # Start transcription job
+#             job_name = f"interview-{interview_id}-{uuid.uuid4().hex}"[:32]  # Max 32 chars
+#             transcribe_client.start_transcription_job(
+#                 TranscriptionJobName=job_name,
+#                 Media={'MediaFileUri': f"s3://{bucket_name}/{s3_filename}"},
+#                 MediaFormat=suffix.replace('.', ''),  # Remove the dot
+#                 LanguageCode='en-US',
+#                 Settings={
+#                     'ShowSpeakerLabels': False,
+#                     'MaxSpeakerLabels': 2
+#                 }
+#             )
+            
+#             # Wait for transcription to complete
+#             import time
+#             max_tries = 30  # 30 x 2 seconds = 60 seconds max wait
+#             tries = 0
+            
+#             while tries < max_tries:
+#                 job = transcribe_client.get_transcription_job(TranscriptionJobName=job_name)
+#                 if job['TranscriptionJob']['TranscriptionJobStatus'] in ['COMPLETED', 'FAILED']:
+#                     break
+#                 time.sleep(2)
+#                 tries += 1
+            
+#             # Get transcription results
+#             if job['TranscriptionJob']['TranscriptionJobStatus'] == 'COMPLETED':
+#                 result_url = job['TranscriptionJob']['Transcript']['TranscriptFileUri']
+                
+#                 # Get the transcript JSON
+#                 import requests
+#                 transcript_response = requests.get(result_url)
+#                 transcript_data = transcript_response.json()
+                
+#                 # Extract the text
+#                 transcribed_text = transcript_data['results']['transcripts'][0]['transcript'].strip()
+                
+#                 # Process the transcribed text
+#                 service = InterviewService()
+#                 if not transcribed_text:
+#                     response = service.handle_silence(interview_id)
+#                 else:
+#                     response = service.process_response(interview_id, transcribed_text)
+                
+#                 # Check if interview is complete
+#                 interview = Interview.objects.get(id=interview_id)
+                
+#                 # Generate audio response with Polly
+#                 polly_response = polly_client.synthesize_speech(
+#                     Text=response['message'],
+#                     OutputFormat='mp3',
+#                     VoiceId='Joanna',
+#                     Engine='standard'
+#                 )
+                
+#                 import base64
+#                 audio_data = polly_response['AudioStream'].read()
+#                 encoded_audio = base64.b64encode(audio_data).decode('ascii')
+                
+#                 # Clean up S3
+#                 s3_client.delete_object(Bucket=bucket_name, Key=s3_filename)
+                
+#                 return Response({
+#                     'text_response': response,
+#                     'audio_response': encoded_audio,
+#                     'transcribed_text': transcribed_text if transcribed_text else "No speech detected",
+#                     'interview_complete': interview.interview_complete
+#                 })
+#             else:
+#                 # Transcription failed
+#                 return Response({
+#                     'error': 'Speech transcription failed'
+#                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+#         finally:
+#             # Clean up temporary file
+#             os.unlink(temp_audio_path)
+            
+#     except Exception as e:
+#         import traceback
+#         print(traceback.format_exc())
+#         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+# New endpoint: Get detailed interview report for HR
+
 @api_view(['POST'])
 def process_audio_response(request, interview_id):
     try:
-        ffmpeg_path = r"C:\Users\2308534\Videos\Project\ai-interviewer\ai-interviewer-backend\ffmpeg-master-latest-win64-gpl-shared\ffmpeg-master-latest-win64-gpl-shared\bin"
-        os.environ["PATH"] = os.environ["PATH"] + os.pathsep + ffmpeg_path
+        # Import the AssemblyAI SDK
+        import ssl
+        
+        # Create an unverified context - FOR DEVELOPMENT ONLY
+        ssl._create_default_https_context = ssl._create_unverified_context
+        
+        # Set the API key
+        aai.settings.api_key = settings.ASSEMBLY_AI
+        
         audio_file = request.FILES.get('audio')
         if not audio_file:
-            return Response({
-                'error': 'Audio file is required'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Audio file is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
         content_type = audio_file.content_type
         print(f"Received audio with content type: {content_type}")
+        
+        # Determine file suffix
         if 'webm' in content_type:
             suffix = '.webm'
         elif 'ogg' in content_type:
@@ -192,49 +409,63 @@ def process_audio_response(request, interview_id):
         elif 'mp4' in content_type:
             suffix = '.mp4'
         else:
-            suffix = '.wav'  # Default
+            suffix = '.wav'
+        
+        # Save file temporarily
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_audio:
             for chunk in audio_file.chunks():
                 temp_audio.write(chunk)
             temp_audio_path = temp_audio.name
+        
         try:
-            print(f"Transcribing audio file: {temp_audio_path}")
-            result = whisper_model.transcribe(temp_audio_path ,
-                                            language="en",  
-                                            fp16=False,    
-                                            beam_size=1 )
-            transcribed_text = result["text"].strip()
+            # Use the SDK's Transcriber
+            transcriber = aai.Transcriber()
+            
+            # Start transcription and wait for completion
+            print("Starting transcription with AssemblyAI SDK...")
+            transcript = transcriber.transcribe(temp_audio_path)
+            
+            # Get the transcribed text
+            transcribed_text = transcript.text if transcript.text else ""
+            print(f"Transcription complete: '{transcribed_text}'")
+            
+            # Process the transcribed text
             service = InterviewService()
             if not transcribed_text:
                 response = service.handle_silence(interview_id)
             else:
                 response = service.process_response(interview_id, transcribed_text)
-            # Check if interview is complete
             
+            # Check if interview is complete
             interview = Interview.objects.get(id=interview_id)
+            
+            # Generate audio response with Polly
             polly_response = polly_client.synthesize_speech(
                 Text=response['message'],
                 OutputFormat='mp3',
                 VoiceId='Joanna',
                 Engine='standard'
             )
+            
             import base64
             audio_data = polly_response['AudioStream'].read()
             encoded_audio = base64.b64encode(audio_data).decode('ascii')
+            
             return Response({
                 'text_response': response,
                 'audio_response': encoded_audio,
-                'transcribed_text': transcribed_text if transcribed_text else "No speech detected",
+                'transcribed_text': transcribed_text,
                 'interview_complete': interview.interview_complete
             })
+            
         finally:
+            # Clean up temporary file
             os.unlink(temp_audio_path)
+            
     except Exception as e:
         import traceback
         print(traceback.format_exc())
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-# New endpoint: Get detailed interview report for HR
-
 
 # New endpoint: Get all interview emails and dates
 @api_view(['GET'])

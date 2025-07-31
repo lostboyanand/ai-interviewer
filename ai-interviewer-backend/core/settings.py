@@ -103,8 +103,9 @@ DATABASES = {
 AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
 AWS_DEFAULT_REGION = os.environ.get('AWS_DEFAULT_REGION', 'us-east-1')
+ASSEMBLY_AI = os.environ.get('ASSEMBLY_AI')
 
-
+AWS_STORAGE_BUCKET_NAME = 'devproctor-audio-temp'
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
