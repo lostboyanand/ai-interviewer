@@ -26,7 +26,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-9kxqf30)(zj*@-6ah9*h^sj!%k=b@)4p%n81n=8ny=mv$bmjsc'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
+
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 ALLOWED_HOSTS = []
 
@@ -57,7 +59,16 @@ MIDDLEWARE = [
 ]
 
 
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS_ALLOW_ALL_ORIGINS = True
+
+CORS_ALLOWED_ORIGINS = [
+    "https://ai-interviewer-inky.vercel.app",
+    "https://ai-interviewer-git-main-lostboyanands-projects.vercel.app",
+    "https://ai-interviewer-352iedbh2-lostboyanands-projects.vercel.app",
+    "http://localhost:4200"  # For development
+]
+
+CORS_ALLOW_CREDENTIALS = True
 
 ROOT_URLCONF = 'core.urls'
 
