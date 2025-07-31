@@ -93,7 +93,7 @@ export class DashboardComponent {
       formData.append('email', this.resumeForm.get('email')?.value);
       
       // API call to register candidate
-      this.http.post<RegistrationResponse>('http://localhost:8000/api/register/', formData)
+      this.http.post<RegistrationResponse>('https://ai-interviewer-1r06.onrender.com/api/register/', formData)
         .pipe(
           catchError(this.handleError)
         )

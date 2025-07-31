@@ -50,7 +50,7 @@ export class HrpanelComponent implements OnInit {
   login() {
     this.loading = true;
     this.loginError = '';
-    this.http.post<any>('http://localhost:8000/api/hr/login/', this.loginForm.value)
+    this.http.post<any>('https://ai-interviewer-1r06.onrender.com/api/hr/login/', this.loginForm.value)
       .subscribe({
         next: (res) => {
           if (res.success) {
@@ -99,7 +99,7 @@ export class HrpanelComponent implements OnInit {
   }
 
   fetchInterviews() {
-    this.http.get<any>('http://localhost:8000/api/interview/responses/')
+    this.http.get<any>('https://ai-interviewer-1r06.onrender.com/api/interview/responses/')
       .subscribe(res => {
         this.interviews = res.interviews || [];
       });
@@ -119,7 +119,7 @@ export class HrpanelComponent implements OnInit {
   viewReport() {
     if (!this.selectedInterview) return;
     this.loadingReport = true;
-    this.http.get<any>(`http://localhost:8000/api/interview/report/${this.selectedInterview.interview_id}/`)
+    this.http.get<any>(`https://ai-interviewer-1r06.onrender.com/api/interview/report/${this.selectedInterview.interview_id}/`)
       .subscribe({
         next: (res) => {
           this.report = res;
@@ -180,7 +180,7 @@ export class HrpanelComponent implements OnInit {
     job_description: this.jobForm.value.job_description
   };
   
-  this.http.post<any>('http://localhost:8000/api/smart-requirement/', requestData)
+  this.http.post<any>('https://ai-interviewer-1r06.onrender.com/api/smart-requirement/', requestData)
     .subscribe({
       next: (response) => {
         this.jobRecommendations = response.recommendations;

@@ -344,7 +344,7 @@ export class InterviewComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
 
     // Start the interview session with backend
-    this.http.post<any>(`http://localhost:8000/api/interview/start/${this.candidateId}/`, {})
+    this.http.post<any>(`https://ai-interviewer-1r06.onrender.com/api/interview/start/${this.candidateId}/`, {})
       .subscribe(
         response => {
           this.interviewId = response.text_response.interview_id;
@@ -552,7 +552,7 @@ export class InterviewComponent implements OnInit, OnDestroy, AfterViewChecked {
     const audioBlob = new Blob(this.audioChunks, { type: mimeType });
     const formData = new FormData();
     formData.append('audio', audioBlob);
-    this.http.post<any>(`http://localhost:8000/api/interview/respond-audio/${this.interviewId}/`, formData)
+    this.http.post<any>(`https://ai-interviewer-1r06.onrender.com/api/interview/respond-audio/${this.interviewId}/`, formData)
       .subscribe(
         response => {
           this.transcript = response.transcribed_text;
