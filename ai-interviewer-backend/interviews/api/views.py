@@ -7,7 +7,7 @@ from ..models import Candidate
 from .serializers import CandidateSerializer
 from ..services.resume_processor import ResumeProcessor 
 from ..services.interview_service import InterviewService
-import whisper
+# import whisper
 import boto3
 import tempfile
 import os
@@ -19,7 +19,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 import assemblyai as aai
 
-whisper_model = whisper.load_model("tiny")
+# whisper_model = whisper.load_model("tiny")
 polly_client = boto3.client('polly' , region_name='us-east-1')
 os.environ["AWS_ACCESS_KEY_ID"] = settings.AWS_ACCESS_KEY_ID
 os.environ["AWS_SECRET_ACCESS_KEY"] = settings.AWS_SECRET_ACCESS_KEY
