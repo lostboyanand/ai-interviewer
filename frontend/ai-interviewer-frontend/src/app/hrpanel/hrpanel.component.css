@@ -889,3 +889,34 @@ select.email-select {
   margin-right: 1rem;
 }
 
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* Danger button */
+.btn.danger {
+  background-color: #dc3545;
+  color: white;
+}
+
+.btn.danger:hover {
+  background-color: #bd2130;
+}
+
+/* Small modal */
+.modal-content.small {
+  max-width: 450px;
+}
+
+.confirmation-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+/* Loading state */
+.btn.danger[disabled] {
+  background-color: #e9a0a8;
+  cursor: not-allowed;
+}

@@ -28,7 +28,8 @@ export class HrpanelComponent implements OnInit {
   showInterviewDetails = false;
   showReportPopup = false;
   showRecommendationsModal = false;
-  
+  showDeleteConfirmModal = false;
+  deleteInProgress = false;
   // Smart requirement properties
   jobRecommendations: any = null;
   loadingRecommendations = false;
@@ -64,6 +65,32 @@ export class HrpanelComponent implements OnInit {
         error: (err) => {
           this.loginError = err.error?.error || 'Login failed';
           this.loading = false;
+        }
+      });
+  }
+
+  confirmDeleteAllData() {
+    this.showDeleteConfirmModal = true;
+  }
+  
+  deleteAllData() {
+    this.deleteInProgress = true;
+    
+    this.http.post<any>('https://ai-interviewer-1r06.onrender.com/api/delete-all/', {})
+      .subscribe({
+        next: (response) => {
+          alert('All interview data has been deleted successfully.');
+          this.showDeleteConfirmModal = false;
+          this.deleteInProgress = false;
+          // Refresh interviews list if on that section
+          if (this.activeSection === 'viewReport') {
+            this.fetchInterviews();
+          }
+        },
+        error: (error) => {
+          alert('Error deleting data: ' + (error.error?.error || 'Unknown error'));
+          this.showDeleteConfirmModal = false;
+          this.deleteInProgress = false;
         }
       });
   }
