@@ -147,6 +147,6 @@ export class DashboardComponent {
 
   goToAdmin() {
     // Navigate to admin panel
-    this.router.navigate(['/admin']);
+    this.router.navigate(['/hrpanel']);
   }
 }

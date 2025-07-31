@@ -24,6 +24,7 @@ class Interview(models.Model):
     transcript = models.JSONField(null=True, blank=True)  # Store complete conversation
     final_score = models.FloatField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    interview_complete = models.BooleanField(default=False)  # New field for completion status
 
     def __str__(self):
         return f"Interview for {self.candidate.email}"
@@ -41,3 +42,11 @@ class InterviewQuestion(models.Model):
 
     def __str__(self):
         return f"Q{self.question_number} for {self.interview.candidate.email}"
+
+class HRUser(models.Model):
+    email = models.EmailField(unique=True)
+    password = models.CharField(max_length=128)  # Store hashed in production!
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.email

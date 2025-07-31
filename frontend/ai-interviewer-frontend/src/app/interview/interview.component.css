@@ -9,9 +9,11 @@
   
   /* System Check Screen */
   .check-screen {
-    padding: 2rem;
-    max-width: 1200px;
-    margin: 0 auto;
+    padding: 1rem;
+    max-width: 700px;
+    margin: 2rem auto;
+    max-height: 90vh;
+    overflow: hidden;
   }
   
   .check-header {
@@ -41,18 +43,20 @@
   .check-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 2rem;
+    gap: 1rem;
     width: 100%;
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
   }
   
   .check-item {
     background: rgba(255, 255, 255, 0.05);
     border-radius: 10px;
-    padding: 1.5rem;
+    padding: 0.75rem;
+    font-size: 0.95rem;
     display: flex;
     align-items: center;
     transition: all 0.3s ease;
+    min-width: 0;
   }
   
   .check-item.check-success {
@@ -80,34 +84,22 @@
     color: #cccccc;
   }
   
-  .camera-preview {
-    position: relative;
-    width: 100%;
-    max-width: 640px;
-    overflow: hidden;
-    border-radius: 10px;
-    margin-bottom: 2rem;
-    background: #000;
-  }
+ 
   
-  .camera-preview video {
-    width: 100%;
-    height: auto;
-    object-fit: cover;
-    display: block;
-  }
-
+  .camera-preview video,
   .camera-preview canvas {
-    position: absolute;
-    top: 0;
-    left: 0;
     width: 100%;
-    height: 100%;
+    height: 180px;
   }
   
   
   .check-actions {
     text-align: center;
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
   }
   
   .btn {
@@ -131,6 +123,8 @@
   .btn.primary {
     background: linear-gradient(45deg, #f7931e, #ff6b6b);
     color: white;
+    font-size: 1rem;
+    padding: 0.7rem 1.5rem;
   }
   
   .btn.primary:hover:not(:disabled) {
@@ -180,12 +174,71 @@
     color: #f7931e;
   }
   
-  .interview-content {
-    display: flex;
-    flex: 1;
-    padding: 2rem;
-    gap: 2rem;
-  }
+
+/* New layout for interview-content */
+.interview-content {
+  display: flex;
+  flex-direction: row;
+  gap: 2rem;
+  padding: 2rem;
+  align-items: stretch;
+}
+
+/* Face logo area (left) */
+.face-logo-area {
+  flex: 0 0 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.03);
+  border-radius: 10px;
+  min-width: 120px;
+  max-width: 180px;
+}
+
+.face-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.face-logo i {
+  color: #f7931e;
+  font-size: 6em;
+  opacity: 0.9;
+}
+
+/* Center: Current question area */
+.current-question-area {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.current-question {
+  background: rgba(247, 147, 30, 0.12);
+  border-radius: 12px;
+  padding: 2rem 2.5rem;
+  margin-bottom: 2rem;
+  font-size: 1.25rem;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  text-align: center;
+  max-width: 500px;
+}
+
+.recording-controls {
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+/* Hide conversation-history and transcript-area in new layout */
+.conversation-area, .conversation-history, .transcript-area {
+  display: none !important;
+}
   
   .conversation-area {
     flex: 2;
@@ -367,27 +420,140 @@
     flex: 1;
   }
 
+  /* Make check-screen more compact and remove scrollbars */
   .check-screen {
-    padding: 2rem;
-    max-width: 1200px;
-    margin: 0 auto;
-    max-height: 100vh;
-    overflow-y: auto; /* Add this */
-  }
-  
-  /* Make the start button more visible */
-  .check-actions {
-    text-align: center;
-    margin-top: 2rem;
-    margin-bottom: 2rem;
     padding: 1rem;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 10px;
+    max-width: 700px;
+    margin: 2rem auto;
+    max-height: 90vh;
+    overflow: hidden;
   }
   
-  .btn.primary {
-    background: linear-gradient(45deg, #f7931e, #ff6b6b);
-    color: white;
-    font-size: 1.3rem; /* Make it bigger */
-    padding: 1.2rem 2.5rem; /* Make it bigger */
+  /* Make check cards smaller */
+  .check-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    width: 100%;
+    margin-bottom: 1rem;
   }
+  
+  .check-item {
+    padding: 0.75rem;
+    font-size: 0.95rem;
+    min-width: 0;
+  }
+  
+  /* Smaller camera preview */
+  .camera-preview {
+    max-width: 23vw;
+    height: 13vw;
+    margin-bottom: 1rem;
+   
+  }
+  
+  .camera-preview video,
+  .camera-preview canvas {
+    width: 100%;
+    height: 180px;
+  }
+  
+  /* Make start button smaller */
+  .check-actions .btn.primary {
+    font-size: 1rem;
+    padding: 0.7rem 1.5rem;
+  }
+  
+  /* Remove vertical scrollbar from body when modal is open */
+  body {
+    overflow-y: auto !important;
+  }
+
+  /* Make check-screen responsive */
+.check-screen {
+  padding: 1em;
+  max-width: 95vw;
+  margin: 1em auto;
+  max-height: 95vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+/* Make check cards smaller and responsive */
+.check-grid {
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5em;
+  width: 100%;
+  margin-bottom: 0.5em;
+}
+
+.check-item {
+  padding: 0.5em;
+  font-size: 0.9em;
+}
+
+/* Responsive camera preview */
+.camera-preview {
+  max-width: 23vw;
+  height: 13vw;
+  margin-bottom: 0.5em;
+}
+
+.camera-preview video,
+.camera-preview canvas {
+  width: 100%;
+  max-width: 220px;
+  height: auto;
+  max-height: 120px;
+}
+
+/* Make start button always visible */
+.check-actions {
+  text-align: center;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  padding: 0.5em;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+}
+
+/* Popup Overlay */
+.popup-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.popup-message {
+  background: #fff;
+  color: #c0392b;
+  padding: 2em 2em 1em 2em;
+  border-radius: 12px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.25);
+  text-align: center;
+  font-size: 1.2em;
+  max-width: 90vw;
+}
+
+.popup-message i {
+  font-size: 2em;
+  margin-bottom: 0.5em;
+  color: #e74c3c;
+  display: block;
+}
+
+.popup-message .btn {
+  margin-top: 1em;
+  background: #e74c3c;
+  color: #fff;
+  border: none;
+  padding: 0.5em 2em;
+  border-radius: 6px;
+  cursor: pointer;
+}

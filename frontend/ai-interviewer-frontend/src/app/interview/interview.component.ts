@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ElementRef, OnDestroy } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, OnDestroy, AfterViewChecked } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
@@ -11,10 +11,13 @@ import * as faceapi from 'face-api.js';
   templateUrl: './interview.component.html',
   styleUrls: ['./interview.component.css']
 })
-export class InterviewComponent implements OnInit, OnDestroy {
+export class InterviewComponent implements OnInit, OnDestroy, AfterViewChecked {
   @ViewChild('videoElement') videoElement!: ElementRef<HTMLVideoElement>;
   @ViewChild('canvasElement') canvasElement!: ElementRef<HTMLCanvasElement>;
   @ViewChild('audioPlayer') audioPlayer!: ElementRef<HTMLAudioElement>;
+  @ViewChild('conversationHistoryDiv') conversationHistoryDiv!: ElementRef<HTMLDivElement>;
+  @ViewChild('previewVideo') previewVideo!: ElementRef<HTMLVideoElement>;
+  @ViewChild('previewCanvas') previewCanvas!: ElementRef<HTMLCanvasElement>;
 
   candidateId: string = '';
   candidateData: any = {};
@@ -44,10 +47,15 @@ export class InterviewComponent implements OnInit, OnDestroy {
   audioChunks: Blob[] = [];
   stream?: MediaStream;
   
-  // Conversation tracking
-  conversationHistory: { role: string, content: string }[] = [];
+
+  // Only current question and transcript
   currentQuestion: string = '';
   transcript: string = '';
+
+  // Interview completion state
+  interviewComplete: boolean = false;
+
+  private interviewVideoAttached = false;
 
   constructor(
     private http: HttpClient,
@@ -153,7 +161,7 @@ export class InterviewComponent implements OnInit, OnDestroy {
       
       this.isCheckComplete = true;
       console.log('System check complete!');
-      this.scrollToStartButton();
+      // this.scrollToStartButton(); // <-- Remove or comment out this line
     } catch (error: unknown) {
       console.error('System check failed with error:', error);
       
@@ -171,15 +179,16 @@ export class InterviewComponent implements OnInit, OnDestroy {
   async checkCamera() {
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { width: 640, height: 480 },
+        video: { width: 320, height: 180 },
         audio: true
       });
-      
-      if (this.videoElement?.nativeElement) {
-        this.videoElement.nativeElement.srcObject = this.stream;
-        this.videoElement.nativeElement.muted = true;  // Add this line to mute the element
-        this.videoElement.nativeElement.onloadedmetadata = () => {
-          this.videoElement.nativeElement.play();
+
+      // Attach to preview video during system check
+      if (this.previewVideo?.nativeElement) {
+        this.previewVideo.nativeElement.srcObject = this.stream;
+        this.previewVideo.nativeElement.muted = true;
+        this.previewVideo.nativeElement.onloadedmetadata = () => {
+          this.previewVideo.nativeElement.play();
           this.testFaceDetection();
         };
         this.isCameraReady = true;
@@ -191,64 +200,37 @@ export class InterviewComponent implements OnInit, OnDestroy {
   
   async testFaceDetection() {
     try {
-      if (!this.videoElement?.nativeElement) {
-        console.log('Video element not available yet');
+      // Use previewVideo for system check
+      const video = this.previewVideo?.nativeElement;
+      if (!video) {
+        console.log('Preview video element not available yet');
         return;
       }
-      
-      // Add a small delay to ensure video is playing and stable
+
       if (!this.isFaceDetected) {
-        console.log('Attempting face detection with improved options...');
-        
-        // Use less strict detection parameters
-        const options = new faceapi.TinyFaceDetectorOptions({ 
-          inputSize: 320, 
-          scoreThreshold: 0.3  // Lower threshold to detect faces more easily
+        const options = new faceapi.TinyFaceDetectorOptions({
+          inputSize: 416, // larger size for better detection
+          scoreThreshold: 0.2 // lower threshold for sensitivity
         });
-        
+
         try {
-          const detections = await faceapi.detectSingleFace(
-            this.videoElement.nativeElement, 
-            options
-          );
-          
+          const detections = await faceapi.detectSingleFace(video, options);
+
           if (detections) {
-            console.log('✅ Face detected successfully!', detections);
             this.isFaceDetected = true;
-            
-            // Draw a rectangle around the detected face to verify
-            const context = this.canvasElement.nativeElement.getContext('2d');
-            if (context) {
-              context.clearRect(0, 0, this.canvasElement.nativeElement.width, this.canvasElement.nativeElement.height);
-              context.beginPath();
-              context.lineWidth = 3;
-              context.strokeStyle = 'green';
-              context.rect(
-                detections.box.x, 
-                detections.box.y, 
-                detections.box.width, 
-                detections.box.height
-              );
-              context.stroke();
-            }
+            // ...draw box if needed...
           } else {
-            console.log('No face detected yet, retrying in 500ms...');
-            // Limit retry attempts and eventually mark as ready even without detection
             setTimeout(() => {
               if (!this.isFaceDetected && this.retryCount < 10) {
                 this.retryCount++;
                 this.testFaceDetection();
               } else if (!this.isFaceDetected) {
-                console.log('Face detection timed out, continuing anyway');
-                this.isFaceDetected = true;  // Mark as detected anyway to continue
+                this.isFaceDetected = true; // fallback to allow progress
               }
             }, 500);
           }
         } catch (error) {
-          console.error('Face detection error:', error);
-          // After a few retries, mark as detected anyway to not block the user
           if (this.retryCount > 3) {
-            console.log('Face detection had errors, continuing anyway');
             this.isFaceDetected = true;
           } else {
             this.retryCount++;
@@ -257,8 +239,6 @@ export class InterviewComponent implements OnInit, OnDestroy {
         }
       }
     } catch (error) {
-      console.error('Unexpected error in face detection test:', error);
-      // Don't block the user even if face detection fails completely
       this.isFaceDetected = true;
     }
   }
@@ -343,15 +323,33 @@ export class InterviewComponent implements OnInit, OnDestroy {
     this.isChecking = false;
     this.isStarted = true;
     this.isLoading = true;
-    
+    this.interviewVideoAttached = false;
+
+    // Detach stream from preview video
+    if (this.previewVideo?.nativeElement) {
+      this.previewVideo.nativeElement.srcObject = null;
+      console.log('Detached stream from previewVideo');
+    }
+
+    // Attach stream to interview video when interview starts
+    if (this.videoElement?.nativeElement && this.stream) {
+      this.videoElement.nativeElement.srcObject = this.stream;
+      this.videoElement.nativeElement.muted = true;
+      this.videoElement.nativeElement.onloadedmetadata = () => {
+        this.videoElement.nativeElement.play();
+      };
+      if (this.videoElement.nativeElement.readyState >= 2) {
+        this.videoElement.nativeElement.play();
+      }
+    }
+
     // Start the interview session with backend
     this.http.post<any>(`http://localhost:8000/api/interview/start/${this.candidateId}/`, {})
       .subscribe(
         response => {
           this.interviewId = response.text_response.interview_id;
+          console.log('Interview started. Interview ID:', this.interviewId);
           this.currentQuestion = response.text_response.message;
-          this.conversationHistory.push({ role: 'assistant', content: this.currentQuestion });
-          
           // Decode base64 audio and play
           const binaryString = window.atob(response.audio_response);
           const bytes = new Uint8Array(binaryString.length);
@@ -362,10 +360,8 @@ export class InterviewComponent implements OnInit, OnDestroy {
           const audioUrl = URL.createObjectURL(audioBlob);
           this.audioPlayer.nativeElement.src = audioUrl;
           this.audioPlayer.nativeElement.play();
-          
           // Start face monitoring
           this.startFaceMonitoring();
-          
           this.isInterviewActive = true;
           this.isLoading = false;
         },
@@ -379,17 +375,25 @@ export class InterviewComponent implements OnInit, OnDestroy {
   
   
   startFaceMonitoring() {
-    if (!this.videoElement?.nativeElement || !this.canvasElement?.nativeElement) return;
-    
+    if (!this.videoElement?.nativeElement || !this.canvasElement?.nativeElement) {
+      console.warn('Face monitoring: video or canvas element missing');
+      return;
+    }
+
     const video = this.videoElement.nativeElement;
     const canvas = this.canvasElement.nativeElement;
     canvas.width = video.width;
     canvas.height = video.height;
     const context = canvas.getContext('2d');
-    
+
+    console.log('Starting face monitoring on video:', video, 'Stream:', video.srcObject);
+
     this.faceDetectionInterval = setInterval(async () => {
       if (!context) return;
-      
+
+      // Log video readyState and if video is playing
+      console.log('Face detection tick. Video readyState:', video.readyState, 'Paused:', video.paused);
+
       const detections = await faceapi.detectAllFaces(
         video, 
         new faceapi.TinyFaceDetectorOptions()
@@ -400,15 +404,36 @@ export class InterviewComponent implements OnInit, OnDestroy {
       if (detections.length === 0) {
         this.isFaceDetected = false;
         this.facingAway = true;
+        console.log('No face detected');
       } else if (detections.length > 1) {
         this.isMultipleFaces = true;
         this.isFaceDetected = true;
         this.facingAway = false;
+        console.log('Multiple faces detected');
+        detections.forEach(detection => {
+          context.beginPath();
+          context.lineWidth = 3;
+          context.strokeStyle = 'red';
+          context.rect(
+            detection.box.x, 
+            detection.box.y, 
+            detection.box.width, 
+            detection.box.height
+          );
+          context.stroke();
+          context.fillStyle = 'rgba(255,0,0,0.10)';
+          context.fillRect(
+            detection.box.x, 
+            detection.box.y, 
+            detection.box.width, 
+            detection.box.height
+          );
+        });
       } else {
         this.isFaceDetected = true;
         this.isMultipleFaces = false;
         this.facingAway = false;
-        
+        console.log('Single face detected:', detections[0]);
         // Draw rectangle around face
         const detection = detections[0];
         context.beginPath();
@@ -421,6 +446,14 @@ export class InterviewComponent implements OnInit, OnDestroy {
           detection.box.height
         );
         context.stroke();
+        // Fill with semi-transparent green
+        context.fillStyle = 'rgba(0,255,0,0.15)';
+        context.fillRect(
+          detection.box.x, 
+          detection.box.y, 
+          detection.box.width, 
+          detection.box.height
+        );
       }
     }, 200);
   }
@@ -515,24 +548,15 @@ export class InterviewComponent implements OnInit, OnDestroy {
   
   sendAudioResponse() {
     if (this.audioChunks.length === 0) return;
-    
     const mimeType = this.mediaRecorder?.mimeType || 'audio/webm';
-    console.log(`Using MIME type: ${mimeType}`);
     const audioBlob = new Blob(this.audioChunks, { type: mimeType });
     const formData = new FormData();
     formData.append('audio', audioBlob);
-    console.log('Sending audio to interview ID:', this.interviewId);
     this.http.post<any>(`http://localhost:8000/api/interview/respond-audio/${this.interviewId}/`, formData)
       .subscribe(
         response => {
-          // Update UI with transcribed text
           this.transcript = response.transcribed_text;
-          this.conversationHistory.push({ role: 'user', content: this.transcript });
-          
-          // Update UI with assistant response
           this.currentQuestion = response.text_response.message;
-          this.conversationHistory.push({ role: 'assistant', content: this.currentQuestion });
-          
           // Decode base64 audio and play
           const binaryString = window.atob(response.audio_response);
           const bytes = new Uint8Array(binaryString.length);
@@ -542,13 +566,19 @@ export class InterviewComponent implements OnInit, OnDestroy {
           const audioBlob = new Blob([bytes], { type: 'audio/mp3' });
           const audioUrl = URL.createObjectURL(audioBlob);
           this.audioPlayer.nativeElement.src = audioUrl;
-          this.audioPlayer.nativeElement.play();
-          
-          // Check if interview is complete
-          if (response.text_response.interview_status === 'COMPLETE') {
-            this.endInterview();
+
+          // If interview is complete, show popup only after audio ends
+          if (response.interview_complete === true) {
+            this.isInterviewActive = false;
+            // Remove any previous event listener
+            this.audioPlayer.nativeElement.onended = null;
+            this.audioPlayer.nativeElement.onended = () => {
+              this.interviewComplete = true;
+              this.audioPlayer.nativeElement.onended = null;
+            };
           }
-          
+
+          this.audioPlayer.nativeElement.play();
           this.isLoading = false;
         },
         error => {
@@ -559,21 +589,28 @@ export class InterviewComponent implements OnInit, OnDestroy {
       );
   }
   
+  // End interview and show popup
   endInterview() {
-    // Clear intervals and stop media streams
     if (this.faceDetectionInterval) {
       clearInterval(this.faceDetectionInterval);
     }
-    
     if (this.stream) {
       this.stream.getTracks().forEach(track => track.stop());
     }
-    
     this.isInterviewActive = false;
-    
-    // Show completion message or redirect to results
-    alert('Interview completed! Thank you for your participation.');
-    // Redirect to results page or dashboard
+    this.interviewComplete = true;
+  }
+
+  // Home button handler
+  goHome() {
+    // Clean up and redirect to homepage/dashboard
+    if (this.faceDetectionInterval) {
+      clearInterval(this.faceDetectionInterval);
+    }
+    if (this.stream) {
+      this.stream.getTracks().forEach(track => track.stop());
+    }
+    this.router.navigate(['/dashboard']);
   }
   
   ngOnDestroy() {
@@ -584,6 +621,26 @@ export class InterviewComponent implements OnInit, OnDestroy {
     
     if (this.stream) {
       this.stream.getTracks().forEach(track => track.stop());
+    }
+  }
+
+  ngAfterViewChecked() {
+    // Attach stream to interview video after DOM is ready
+    if (
+      this.isStarted &&
+      !this.interviewVideoAttached &&
+      this.videoElement?.nativeElement &&
+      this.stream
+    ) {
+      this.videoElement.nativeElement.srcObject = this.stream;
+      this.videoElement.nativeElement.muted = true;
+      this.videoElement.nativeElement.onloadedmetadata = () => {
+        this.videoElement.nativeElement.play();
+      };
+      if (this.videoElement.nativeElement.readyState >= 2) {
+        this.videoElement.nativeElement.play();
+      }
+      this.interviewVideoAttached = true;
     }
   }
 }

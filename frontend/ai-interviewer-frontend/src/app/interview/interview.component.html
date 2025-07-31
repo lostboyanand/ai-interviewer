@@ -59,8 +59,8 @@
         
         <!-- Camera Preview -->
         <div class="camera-preview">
-            <video #videoElement width="640" height="480" autoplay muted playsinline></video>
-            <canvas #canvasElement width="640" height="480"></canvas>
+            <video #previewVideo width="640" height="480" autoplay muted playsinline></video>
+            <canvas #previewCanvas width="640" height="480"></canvas>
           </div>
         
         <!-- Start Button -->
@@ -79,66 +79,58 @@
           <h2>AI Interview Session</h2>
           <p *ngIf="candidateData.name">Candidate: {{ candidateData.name }}</p>
         </div>
-        
         <div class="status-indicators">
           <div class="status-item" [class.status-error]="facingAway">
             <i class="fas" [class.fa-check-circle]="!facingAway" [class.fa-exclamation-circle]="facingAway"></i>
             <span>Face Visible</span>
           </div>
-          
           <div class="status-item" [class.status-error]="isMultipleFaces">
             <i class="fas" [class.fa-check-circle]="!isMultipleFaces" [class.fa-exclamation-circle]="isMultipleFaces"></i>
             <span>Single Person</span>
           </div>
-          
           <div class="status-item" [class.status-active]="isRecording">
             <i class="fas" [class.fa-microphone]="!isRecording" [class.fa-microphone-alt]="isRecording"></i>
             <span>{{ isRecording ? 'Recording' : 'Mic Ready' }}</span>
           </div>
         </div>
       </div>
-      
       <div class="interview-content">
-        <div class="conversation-area">
-          <div class="conversation-history">
-            <div *ngFor="let message of conversationHistory" class="message" [class.assistant-message]="message.role === 'assistant'" [class.user-message]="message.role === 'user'">
-              <div class="message-avatar">
-                <i class="fas" [class.fa-robot]="message.role === 'assistant'" [class.fa-user]="message.role === 'user'"></i>
-              </div>
-              <div class="message-content">
-                <p>{{ message.content }}</p>
-              </div>
-            </div>
+        <!-- Left: Face logo -->
+        <div class="face-logo-area">
+          <div class="face-logo">
+            <i class="fas fa-user-circle fa-7x"></i>
           </div>
-          
+        </div>
+        <!-- Center: Current Question -->
+        <div class="current-question-area">
           <div class="current-question" *ngIf="currentQuestion && isInterviewActive">
             <h3>Current Question:</h3>
             <p>{{ currentQuestion }}</p>
           </div>
-          
-          <div class="transcript-area" *ngIf="transcript">
-            <h3>Your Response:</h3>
-            <p>{{ transcript }}</p>
+          <div class="recording-controls" *ngIf="isInterviewActive">
+            <button class="btn record" (click)="startRecording()" *ngIf="!isRecording" [disabled]="isLoading">
+              <i class="fas fa-microphone"></i> Start Recording
+            </button>
+            <button class="btn stop" (click)="stopRecording()" *ngIf="isRecording" [disabled]="isLoading">
+              <i class="fas fa-stop-circle"></i> Stop Recording
+            </button>
           </div>
-          
           <div class="loading-indicator" *ngIf="isLoading">
             <div class="spinner"></div>
             <p>Processing...</p>
           </div>
         </div>
-        
+        <!-- Right: Video -->
         <div class="video-area">
           <div class="video-container">
             <video #videoElement width="320" height="240" autoplay muted></video>
             <canvas #canvasElement width="320" height="240"></canvas>
-            
             <div class="video-overlay" *ngIf="facingAway">
               <div class="alert-message">
                 <i class="fas fa-exclamation-triangle"></i>
                 Please face the camera
               </div>
             </div>
-            
             <div class="video-overlay" *ngIf="isMultipleFaces">
               <div class="alert-message">
                 <i class="fas fa-exclamation-triangle"></i>
@@ -146,20 +138,31 @@
               </div>
             </div>
           </div>
-          
-          <div class="recording-controls" *ngIf="isInterviewActive">
-            <button class="btn record" (click)="startRecording()" *ngIf="!isRecording" [disabled]="isLoading">
-              <i class="fas fa-microphone"></i> Start Recording
-            </button>
-            
-            <button class="btn stop" (click)="stopRecording()" *ngIf="isRecording" [disabled]="isLoading">
-              <i class="fas fa-stop-circle"></i> Stop Recording
-            </button>
-          </div>
         </div>
       </div>
-      
       <!-- Hidden audio player for playing responses -->
       <audio #audioPlayer></audio>
+      <!-- Interview Complete Popup -->
+      <div class="popup-overlay" *ngIf="interviewComplete">
+        <div class="popup-message">
+          <i class="fas fa-check-circle" style="color: #28a745; font-size: 2.5em;"></i>
+          <h2>Thank you for the interview!</h2>
+          <p>Our HR team will contact you soon with your results.<br>Please return to the homepage.</p>
+          <button class="btn primary" (click)="goHome()">Home</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Multiple Faces Detected Popup -->
+    <div 
+      class="popup-overlay" 
+      *ngIf="isMultipleFaces"
+      (click)="isMultipleFaces = false"
+    >
+      <div class="popup-message">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span>Multiple faces detected! Please ensure only you are visible in the camera.</span>
+        <button class="btn" (click)="isMultipleFaces = false; $event.stopPropagation();">OK</button>
+      </div>
     </div>
   </div>

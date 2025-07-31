@@ -1,0 +1,433 @@
+<div class="hrpanel-container">
+  <!-- HR Login Form -->
+  <div *ngIf="!loggedIn" class="card login-card">
+    <div class="card-header">
+      <i class="fas fa-user-shield"></i>
+      <h2>HR Authentication Portal</h2>
+    </div>
+    <div class="card-body">
+      <form (ngSubmit)="login()" [formGroup]="loginForm">
+        <div class="form-group">
+          <label for="email"><i class="fas fa-envelope"></i> Email Address</label>
+          <input id="email" formControlName="email" type="email" placeholder="Enter HR email" required>
+          <div class="error-message" *ngIf="loginForm.get('email')?.invalid && loginForm.get('email')?.touched">
+            Please enter a valid email address
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="password"><i class="fas fa-lock"></i> Password</label>
+          <input id="password" formControlName="password" type="password" placeholder="Enter password" required>
+          <div class="error-message" *ngIf="loginForm.get('password')?.invalid && loginForm.get('password')?.touched">
+            Password is required
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn primary" type="submit" [disabled]="loginForm.invalid || loading">
+            <i class="fas fa-sign-in-alt"></i> {{ loading ? 'Authenticating...' : 'Login to Dashboard' }}
+          </button>
+        </div>
+        <div class="error-message auth-error" *ngIf="loginError">
+          <i class="fas fa-exclamation-circle"></i> {{ loginError }}
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- HR Dashboard -->
+  <div *ngIf="loggedIn" class="dashboard-content">
+    <div class="dashboard-header">
+      <h2><i class="fas fa-chart-line"></i> HR Management Dashboard</h2>
+      <button class="btn logout" (click)="logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+    </div>
+
+    <!-- Main Options -->
+    <div class="options-container">
+      <div class="card option-card" (click)="setActiveSection('viewReport')">
+        <div class="option-icon">
+          <i class="fas fa-file-alt"></i>
+        </div>
+        <div class="option-details">
+          <h3>View Interview Reports</h3>
+          <p>Access and analyze candidate interview reports</p>
+        </div>
+      </div>
+      
+      <div class="card option-card" (click)="setActiveSection('smartRequirement')">
+        <div class="option-icon">
+          <i class="fas fa-brain"></i>
+        </div>
+        <div class="option-details">
+          <h3>Smart Requirement</h3>
+          <p>Create intelligent job requirements with AI assistance</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- View Report Section -->
+    <div *ngIf="activeSection === 'viewReport'" class="section-container">
+      <div class="section-header">
+        <h3><i class="fas fa-file-alt"></i> Interview Reports</h3>
+        <button class="btn secondary" (click)="setActiveSection('')">
+          <i class="fas fa-arrow-left"></i> Back
+        </button>
+      </div>
+
+      <div class="card candidate-selector">
+        <div class="card-body">
+          <h4><i class="fas fa-user-check"></i> Available Candidate</h4>
+          <div class="selection-container">
+            <div class="select-wrapper">
+              <select [(ngModel)]="selectedEmail" (change)="onEmailChange()" class="email-select" [disabled]="interviews.length === 0">
+                <option value="" disabled selected>{{ interviews.length === 0 ? 'No candidates available' : 'Select candidate email' }}</option>
+                <option *ngFor="let interview of interviews" [value]="interview.email">{{ interview.email }}</option>
+              </select>
+              <i class="fas fa-chevron-down select-icon"></i>
+            </div>
+            <button class="btn refresh" (click)="fetchInterviews()" title="Refresh candidates list">
+              <i class="fas fa-sync-alt"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="selectedInterview" class="card interview-details">
+        <div class="card-body">
+          <h4><i class="fas fa-info-circle"></i> Interview Details</h4>
+          <div class="details-grid">
+            <div class="detail-item">
+              <span class="detail-label"><i class="fas fa-id-card"></i> Interview ID:</span>
+              <span class="detail-value">{{ selectedInterview.interview_id }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label"><i class="fas fa-envelope"></i> Candidate Email:</span>
+              <span class="detail-value">{{ selectedInterview.email }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label"><i class="fas fa-calendar-alt"></i> Date:</span>
+              <span class="detail-value">{{ selectedInterview.interview_date | date:'medium' }}</span>
+            </div>
+          </div>
+          <div class="action-buttons">
+            <button class="btn primary" (click)="viewReport()" [disabled]="loadingReport">
+              <i class="fas" [ngClass]="loadingReport ? 'fa-spinner fa-spin' : 'fa-file-alt'"></i>
+              {{ loadingReport ? 'Loading Report...' : 'View Detailed Report' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Report Display -->
+      <div *ngIf="report" class="report-container">
+        <div class="card report-card">
+          <div class="card-header">
+            <div class="report-header-content">
+              <h4><i class="fas fa-clipboard-list"></i> Comprehensive Interview Report</h4>
+              <div class="score-badge" [ngClass]="{
+                'high-score': report.final_score >= 7,
+                'medium-score': report.final_score >= 4 && report.final_score < 7,
+                'low-score': report.final_score < 4
+              }">
+                {{ report.final_score }}/10
+              </div>
+            </div>
+          </div>
+          
+          <div class="card-body">
+            <div class="report-meta">
+              <div class="meta-item">
+                <i class="fas fa-user"></i>
+                <span>{{ report.candidate_email }}</span>
+              </div>
+              <div class="meta-item">
+                <i class="fas fa-calendar-check"></i>
+                <span>{{ report.interview_date | date:'medium' }}</span>
+              </div>
+              <div class="meta-item">
+                <i class="fas fa-check-circle" [ngClass]="{'incomplete': !report.interview_complete}"></i>
+                <span>{{ report.interview_complete ? 'Interview Complete' : 'Interview Incomplete' }}</span>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+            
+            <div class="report-content">
+              <h4><i class="fas fa-chart-bar"></i> Detailed Analysis</h4>
+              <div class="report-text">
+                <pre>{{ report.detailed_report.detailed_analysis }}</pre>
+              </div>
+              
+              <h4><i class="fas fa-question-circle"></i> Question Breakdown</h4>
+              <div class="question-cards" *ngIf="report.detailed_report.question_breakdown">
+                <div *ngFor="let question of report.detailed_report.question_breakdown" class="question-card">
+                  <div class="question-header">
+                    <span class="question-number">Q{{ question.question_number }}</span>
+                    <span class="question-type">{{ formatQuestionType(question.question_type) }}</span>
+                    <span class="question-score" [ngClass]="{
+                      'high-score': question.score >= 7,
+                      'medium-score': question.score >= 4 && question.score < 7,
+                      'low-score': question.score < 4
+                    }">{{ question.score }}/10</span>
+                  </div>
+                  <div class="question-content">
+                    <p class="question-text"><strong>Question:</strong> {{ question.question_text }}</p>
+                    <p class="answer-text"><strong>Answer:</strong> {{ question.answer_text }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Smart Requirement Section -->
+   <!-- Smart Requirement Section -->
+    <div *ngIf="activeSection === 'smartRequirement'" class="section-container">
+    <div class="section-header">
+        <h3><i class="fas fa-brain"></i> Smart Requirement Analysis</h3>
+        <button class="btn secondary" (click)="setActiveSection('')">
+        <i class="fas fa-arrow-left"></i> Back
+        </button>
+    </div>
+    
+    <!-- Job Requirements Input Form -->
+    <div class="card">
+        <div class="card-header">
+        <h4><i class="fas fa-file-alt"></i> Job Description</h4>
+        </div>
+        <div class="card-body">
+        <form [formGroup]="jobForm" (ngSubmit)="analyzeJobRequirement()">
+            <div class="form-group">
+            <label for="job_title"><i class="fas fa-briefcase"></i> Job Title</label>
+            <input 
+                type="text" 
+                id="job_title" 
+                formControlName="job_title" 
+                placeholder="e.g., Full Stack .NET Developer" 
+                class="form-control">
+            <div class="error-message" *ngIf="jobForm.get('job_title')?.invalid && jobForm.get('job_title')?.touched">
+                Please enter a job title
+            </div>
+            </div>
+            
+            <div class="form-group">
+            <label for="job_description"><i class="fas fa-tasks"></i> Job Description</label>
+            <textarea 
+                id="job_description" 
+                formControlName="job_description" 
+                rows="10" 
+                placeholder="Paste the complete job description including responsibilities, qualifications, and skills..." 
+                class="form-control"></textarea>
+            <div class="error-message" *ngIf="jobForm.get('job_description')?.invalid && jobForm.get('job_description')?.touched">
+                Please enter a job description
+            </div>
+            </div>
+            
+            <div class="form-actions">
+            <button type="submit" class="btn primary" [disabled]="jobForm.invalid || loadingRecommendations">
+                <i class="fas" [ngClass]="loadingRecommendations ? 'fa-spinner fa-spin' : 'fa-search'"></i>
+                {{ loadingRecommendations ? 'Analyzing Candidates...' : 'Find Best Matches' }}
+            </button>
+            </div>
+        </form>
+        </div>
+    </div>
+    
+    <!-- Loading State -->
+    <div class="loading-container" *ngIf="loadingRecommendations">
+        <div class="loading-animation">
+        <div class="spinner"></div>
+        <p>AI is analyzing candidates against your job requirements...</p>
+        </div>
+    </div>
+    </div>
+
+    <!-- Add Recommendations Modal -->
+    <div class="modal" [class.show]="showRecommendationsModal">
+    <div class="modal-content xlarge recommendations-modal">
+        <div class="modal-header">
+        <h4><i class="fas fa-chart-pie"></i> Job Match Analysis</h4>
+        <span class="close" (click)="closeRecommendationsModal()">&times;</span>
+        </div>
+        <div class="card-body">
+        <div class="result-actions">
+            <button class="btn secondary" (click)="closeRecommendationsModal()">
+            <i class="fas fa-edit"></i> Edit Job Requirements
+            </button>
+        </div>
+        
+        <div class="summary-box">
+            <h4>Analysis Summary</h4>
+            <p>{{ jobRecommendations?.analysis_summary }}</p>
+        </div>
+        
+        <!-- Candidate Recommendations -->
+        <h4 class="recommendations-title" *ngIf="jobRecommendations?.top_candidates?.length">
+            <i class="fas fa-trophy"></i> Top Candidate Recommendations
+        </h4>
+        
+        <div class="top-candidates" *ngIf="jobRecommendations?.top_candidates?.length">
+            <div *ngFor="let candidate of jobRecommendations.top_candidates" class="card candidate-card" [class.first-place]="candidate.rank === 1">
+            <div class="rank-badge" [ngClass]="{'gold': candidate.rank === 1, 'silver': candidate.rank === 2, 'bronze': candidate.rank === 3}">
+                {{ candidate.rank }}
+            </div>
+            
+            <div class="card-body candidate-content">
+                <div class="candidate-header">
+                <h4 class="candidate-email">{{ candidate.candidate_email }}</h4>
+                <div class="match-score" [ngClass]="{
+                    'high-score': candidate.match_score >= 80,
+                    'medium-score': candidate.match_score >= 60 && candidate.match_score < 80,
+                    'low-score': candidate.match_score < 60
+                }">
+                    {{ candidate.match_score }}% Match
+                </div>
+                </div>
+                
+                <div class="candidate-grid">
+                <div class="grid-section">
+                    <h5><i class="fas fa-star"></i> Strengths</h5>
+                    <ul class="strength-list">
+                    <li *ngFor="let strength of candidate.strengths">{{ strength }}</li>
+                    </ul>
+                </div>
+                
+                <div class="grid-section">
+                    <h5><i class="fas fa-tools"></i> Development Areas</h5>
+                    <ul class="gap-list">
+                    <li *ngFor="let gap of candidate.gaps">{{ gap }}</li>
+                    </ul>
+                </div>
+                </div>
+                
+                <div class="recommendation-box">
+                <h5><i class="fas fa-comment-alt"></i> Recommendation</h5>
+                <p>{{ candidate.recommendation }}</p>
+                </div>
+                
+                <div class="candidate-actions">
+                <button class="btn primary" (click)="viewCandidateReport(candidate.interview_id)">
+                    <i class="fas fa-file-alt"></i> View Full Report
+                </button>
+                </div>
+            </div>
+            </div>
+        </div>
+        
+        <div class="no-recommendations" *ngIf="!jobRecommendations?.top_candidates?.length">
+            <div class="empty-state">
+            <i class="fas fa-search"></i>
+            <h4>No Matches Found</h4>
+            <p>No suitable candidates were found for this job requirement. Try adjusting your job description or check back when more candidates have been interviewed.</p>
+            </div>
+        </div>
+        </div>
+    </div>
+    </div>
+
+  <!-- Interview Details Popup -->
+  <div class="modal" [class.show]="showInterviewDetails" *ngIf="selectedInterview">
+    <div class="modal-content large">
+      <span class="close" (click)="closeInterviewDetails()">&times;</span>
+      <div class="card interview-details">
+        <div class="card-body">
+          <h4><i class="fas fa-info-circle"></i> Interview Details</h4>
+          <div class="details-grid">
+            <div class="detail-item">
+              <span class="detail-label"><i class="fas fa-id-card"></i> Interview ID:</span>
+              <span class="detail-value">{{ selectedInterview.interview_id }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label"><i class="fas fa-envelope"></i> Candidate Email:</span>
+              <span class="detail-value">{{ selectedInterview.email }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label"><i class="fas fa-calendar-alt"></i> Date:</span>
+              <span class="detail-value">{{ selectedInterview.interview_date | date:'medium' }}</span>
+            </div>
+          </div>
+          <div class="action-buttons">
+            <button class="btn primary" (click)="viewReport()" [disabled]="loadingReport">
+              <i class="fas" [ngClass]="loadingReport ? 'fa-spinner fa-spin' : 'fa-file-alt'"></i>
+              {{ loadingReport ? 'Loading Report...' : 'View Detailed Report' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Report Popup -->
+  <div class="modal" [class.show]="showReportPopup" *ngIf="report">
+    <div class="modal-content xlarge">
+      <div class="modal-header">
+        <span class="close" (click)="closeReportPopup()">&times;</span>
+        <button class="btn primary download-btn" (click)="downloadReportAsPDF()">
+          <i class="fas fa-download"></i> Download as PDF
+        </button>
+      </div>
+      <div class="card report-card">
+        <div class="card-header">
+          <div class="report-header-content">
+            <h4><i class="fas fa-clipboard-list"></i> Comprehensive Interview Report</h4>
+            <div class="score-badge" [ngClass]="{
+              'high-score': report.final_score >= 7,
+              'medium-score': report.final_score >= 4 && report.final_score < 7,
+              'low-score': report.final_score < 4
+            }">
+              {{ report.final_score }}/10
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="report-meta">
+            <div class="meta-item">
+              <i class="fas fa-user"></i>
+              <span>{{ report.candidate_email }}</span>
+            </div>
+            <div class="meta-item">
+              <i class="fas fa-calendar-check"></i>
+              <span>{{ report.interview_date | date:'medium' }}</span>
+            </div>
+            <div class="meta-item">
+              <i class="fas fa-check-circle" [ngClass]="{'incomplete': !report.interview_complete}"></i>
+              <span>{{ report.interview_complete ? 'Interview Complete' : 'Interview Incomplete' }}</span>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div class="report-content">
+            <h4><i class="fas fa-chart-bar"></i> Detailed Analysis</h4>
+            <div class="report-text">
+              <pre>{{ report.detailed_report.detailed_analysis }}</pre>
+            </div>
+            <h4><i class="fas fa-question-circle"></i> Question Breakdown</h4>
+            <div class="question-cards" *ngIf="report.detailed_report.question_breakdown">
+              <div *ngFor="let question of report.detailed_report.question_breakdown" class="question-card">
+                <div class="question-header">
+                  <span class="question-number">Q{{ question.question_number }}</span>
+                  <span class="question-type">{{ formatQuestionType(question.question_type) }}</span>
+                  <span class="question-score" [ngClass]="{
+                    'high-score': question.score >= 7,
+                    'medium-score': question.score >= 4 && question.score < 7,
+                    'low-score': question.score < 4
+                  }">{{ question.score }}/10</span>
+                </div>
+                <div class="question-content">
+                  <p class="question-text"><strong>Question:</strong> {{ question.question_text }}</p>
+                  <p class="answer-text"><strong>Answer:</strong> {{ question.answer_text }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Download Report Button (for PDF download) -->
+  <div class="download-report-container" *ngIf="report">
+    <button class="btn primary" (click)="downloadReportAsPDF()">
+      <i class="fas fa-download"></i> Download Report as PDF
+    </button>
+  </div>
+</div>
