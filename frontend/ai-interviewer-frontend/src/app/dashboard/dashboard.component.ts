@@ -24,12 +24,15 @@ interface RegistrationResponse {
 })
 export class DashboardComponent {
   showModal = false;
+  showAboutModal = false;
   resumeForm: FormGroup;
   selectedFile: File | null = null;
   fileError: string | null = null;
   isSubmitting = false;
   isLoading = false;
-  
+  showContactModal = false;
+
+
   constructor(
     private router: Router,
     private fb: FormBuilder,
@@ -38,6 +41,23 @@ export class DashboardComponent {
     this.resumeForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]]
     });
+  }
+
+  openContactModal(event: Event) {
+  event.preventDefault();
+  this.showContactModal = true;
+}
+
+closeContactModal() {
+  this.showContactModal = false;
+}
+  openAboutModal(event: Event) {
+    event.preventDefault();
+    this.showAboutModal = true;
+  }
+
+  closeAboutModal() {
+    this.showAboutModal = false;
   }
 
   startInterview() {

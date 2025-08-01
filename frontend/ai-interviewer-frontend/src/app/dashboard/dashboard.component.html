@@ -1,92 +1,224 @@
 
 
-<div class="landing-container">
+
+
+<!-- Dashboard content, hidden when About modal is open -->
+<div *ngIf="!showAboutModal && !showContactModal">
+  <div class="landing-container">
     <div class="overlay"></div>
     <nav class="navbar">
-        <div class="logo">
-            <img src="assets/codinglogo.png" alt="Coding Ninjas">
-            <span>DevProctor AI</span>
-        </div>
-        <div class="nav-links">
-            <a href="#">Home</a>
-            <a href="#">About</a>
-            <a href="#">Contact</a>
-        </div>
+      <div class="logo">
+        <img src="assets/codinglogo.png" alt="Coding Ninjas">
+        <span>DevProctor AI</span>
+      </div>
+      <div class="nav-links">
+        <a href="#">Home</a>
+        <a href="#" (click)="openAboutModal($event)">About</a>
+        <a href="#" (click)="openContactModal($event)">Contact</a>
+      </div>
     </nav>
-
     <div class="hero-section">
-        <div class="content">
-            <h1 class="title">Welcome to the Future of Interviews</h1>
-            <p class="subtitle">Powered by AI, designed for excellence</p>
-            
-            <div class="features">
-                <div class="feature-card">
-                    <i class="fas fa-robot"></i>
-                    <h3>AI-Powered</h3>
-                    <p>Smart evaluation system</p>
-                </div>
-                <div class="feature-card">
-                    <i class="fas fa-code"></i>
-                    <h3>Real-time Coding</h3>
-                    <p>Live coding environment</p>
-                </div>
-                <div class="feature-card">
-                    <i class="fas fa-chart-line"></i>
-                    <h3>Instant Analysis</h3>
-                    <p>Detailed performance metrics</p>
-                </div>
-            </div>
-
-            <div class="cta-buttons">
-                <button class="btn primary" (click)="startInterview()">
-                    <i class="fas fa-play"></i>
-                    Take Interview
-                </button>
-                <button class="btn secondary" (click)="goToAdmin()">
-                    <i class="fas fa-user-shield"></i>
-                    HR Panel
-                </button>
-            </div>
+      <div class="content">
+        <h1 class="title">Welcome to the Future of Interviews</h1>
+        <p class="subtitle">Powered by AI, designed for excellence</p>
+        <div class="features">
+          <div class="feature-card">
+            <i class="fas fa-robot"></i>
+            <h3>AI-Powered</h3>
+            <p>Smart evaluation system</p>
+          </div>
+          <div class="feature-card">
+            <i class="fas fa-code"></i>
+            <h3>Real-time Coding</h3>
+            <p>Live coding environment</p>
+          </div>
+          <div class="feature-card">
+            <i class="fas fa-chart-line"></i>
+            <h3>Instant Analysis</h3>
+            <p>Detailed performance metrics</p>
+          </div>
         </div>
+        <div class="cta-buttons">
+          <button class="btn primary" (click)="startInterview()">
+            <i class="fas fa-play"></i>
+            Take Interview
+          </button>
+          <button class="btn secondary" (click)="goToAdmin()">
+            <i class="fas fa-user-shield"></i>
+            HR Panel
+          </button>
+        </div>
+      </div>
     </div>
-    <!-- Add this modal HTML at the end -->
     <div class="modal" [class.show]="showModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Submit Your Details</h2>
-                <span class="close" (click)="closeModal()">&times;</span>
-            </div>
-            <div class="modal-body">
-                <div class="loading-overlay" *ngIf="isLoading">
-                    <div class="spinner"></div>
-                    <p class="loading-text">Please wait, we're registering and taking you to the interview page...</p>
-                </div>
-                <form [formGroup]="resumeForm" (ngSubmit)="proceedToInterview()">
-                    <div class="form-group">
-                        <label for="email">Email Address:</label>
-                        <input type="email" id="email" formControlName="email" placeholder="Enter your email">
-                        <div class="error-message" *ngIf="resumeForm.get('email')?.invalid && resumeForm.get('email')?.touched">
-                            Please enter a valid email address
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="resume">Upload Resume (PDF only, max 3MB):</label>
-                        <input type="file" id="resume" (change)="onFileSelected($event)" accept=".pdf">
-                        <div class="error-message" *ngIf="fileError">
-                            {{ fileError }}
-                        </div>
-                    </div>
-                    
-                    <div class="form-actions">
-                        <button type="button" class="btn secondary" (click)="closeModal()">Cancel</button>
-                        <button type="submit" class="btn primary" [disabled]="!resumeForm.valid || !selectedFile">
-                            Proceed
-                        </button>
-                    </div>
-                </form>
-            </div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Submit Your Details</h2>
+          <span class="close" (click)="closeModal()">&times;</span>
         </div>
+        <div class="modal-body">
+          <div class="loading-overlay" *ngIf="isLoading">
+            <div class="spinner"></div>
+            <p class="loading-text">Please wait, we're registering and taking you to the interview page...</p>
+          </div>
+          <form [formGroup]="resumeForm" (ngSubmit)="proceedToInterview()">
+            <div class="form-group">
+              <label for="email">Email Address:</label>
+              <input type="email" id="email" formControlName="email" placeholder="Enter your email">
+              <div class="error-message" *ngIf="resumeForm.get('email')?.invalid && resumeForm.get('email')?.touched">
+                Please enter a valid email address
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="resume">Upload Resume (PDF only, max 3MB):</label>
+              <input type="file" id="resume" (change)="onFileSelected($event)" accept=".pdf">
+              <div class="error-message" *ngIf="fileError">
+                {{ fileError }}
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn secondary" (click)="closeModal()">Cancel</button>
+              <button type="submit" class="btn primary" [disabled]="!resumeForm.valid || !selectedFile">
+                Proceed
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
     <div class="modal-backdrop" [class.show]="showModal" (click)="closeModal()"></div>
+  </div>
+</div>
+
+<!-- Full-page About Section (not a modal) -->
+<div *ngIf="showAboutModal" class="about-fullpage">
+  <!-- <a href="#" class="back-nav" (click)="closeAboutModal()">
+    <i class="fas fa-arrow-left"></i> Back to Home
+  </a> -->
+  <div class="about-main">
+    <div class="about-header">
+      <div class="about-header-content">
+        <img src="assets/sumit.jpg" alt="Sumit Anand" class="about-photo" />
+        <div class="about-title">
+          <h2>Sumit Anand</h2>
+          <span class="about-subtitle">AI Engineer & Product Builder</span>
+        </div>
+      </div>
+      <span class="close" (click)="closeAboutModal()">&times;</span>
+    </div>
+    <div class="about-body">
+      <div class="about-intro">
+        <h3>👋 Yo, I'm Sumit</h3>
+        <p class="tagline">I build stuff. Mostly Gen AI tools that actually get used.</p>
+      </div>
+      <div class="about-section">
+        <p>I'm not from IIT. I don't write papers or give talks. But I've built 15+ working PoCs, taken from 0 → usable → deployed. No slides. Just builds.</p>
+        <p>At Cognizant, I single-handedly built a Testing Agent that's now powering policy-compliant automation — and yeah, it's brought in 8 figures in business value.</p>
+      </div>
+      <div class="about-section">
+        <h4>A few other things I've shipped:</h4>
+        <div class="projects-grid">
+          <div class="project-card">
+            <i class="fas fa-database"></i>
+            <span>Text2SQL assistants using Streamlit + Bedrock (Claude)</span>
+          </div>
+          <div class="project-card">
+            <i class="fas fa-code"></i>
+            <span>Automated UI testing with LLMs + Playwright</span>
+          </div>
+          <div class="project-card">
+            <i class="fas fa-file-pdf"></i>
+            <span>PDF-to-XML and Excel-based financial data tools</span>
+          </div>
+          <div class="project-card">
+            <i class="fas fa-robot"></i>
+            <span>Copilot tracking extensions, agentic frameworks</span>
+          </div>
+          <div class="project-card">
+            <i class="fas fa-database"></i>
+            <span>Legacy DB analyzers</span>
+          </div>
+          <div class="project-card">
+            <i class="fas fa-chart-bar"></i>
+            <span>AWS cloud spend dashboards in plain English</span>
+          </div>
+        </div>
+      </div>
+      <div class="about-section">
+        <p class="highlight-box">Right now, I'm working on the next one. And it's already looking bigger.</p>
+        <p>If you're building something and want someone who gets sh*t done — let's talk.</p>
+      </div>
+      <div class="about-footer">
+        <h4>📬 Reach Me</h4>
+        <div class="contact-links">
+          <a href="mailto:sumit.annad@gmail.com" class="contact-item">
+            <i class="fas fa-envelope"></i>
+            <span>sumit.annad&#64;gmail.com</span>
+          </a>
+          <a href="https://www.linkedin.com/in/sumit-anand88/" target="_blank" class="contact-item">
+            <i class="fab fa-linkedin"></i>
+            <span>linkedin.com/in/sumit-anand88</span>
+          </a>
+          <a href="https://github.com/lostboyanand" target="_blank" class="contact-item">
+            <i class="fab fa-github"></i>
+            <span>github.com/lostboyanand</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Full-page Contact Section (not a modal) -->
+<div *ngIf="showContactModal" class="contact-fullpage">
+  <div class="contact-main">
+    <div class="contact-header">
+      <div class="contact-header-content">
+        <img src="assets/sumit.jpg" alt="Sumit Anand" class="contact-photo" />
+        <div class="contact-title">
+          <h2>Contact Me</h2>
+          <span class="contact-subtitle">Let's build something together</span>
+        </div>
+      </div>
+      <span class="close" (click)="closeContactModal()">&times;</span>
+    </div>
+    <div class="contact-body">
+      <div class="contact-intro">
+        <h3>📱 Get In Touch</h3>
+        <p class="tagline">Interested in working together? Reach out through any of these channels.</p>
+      </div>
+      
+      <div class="contact-grid">
+        <div class="contact-card">
+          <i class="fas fa-phone"></i>
+          <h4>Call Me</h4>
+          <a href="tel:+918409097290" class="contact-detail">+91 8409097290</a>
+          <a href="tel:+918809800499" class="contact-detail">+91 8809800499</a>
+        </div>
+        
+        <div class="contact-card">
+          <i class="fas fa-envelope"></i>
+          <h4>Email</h4>
+          <a href="mailto:sumit.annad@gmail.com" class="contact-detail">sumit.annad&#64;gmail.com</a>
+        </div>
+        
+        <div class="contact-card">
+          <i class="fab fa-linkedin"></i>
+          <h4>LinkedIn</h4>
+          <a href="https://www.linkedin.com/in/sumit-anand88/" target="_blank" class="contact-detail">linkedin.com/in/sumit-anand88</a>
+        </div>
+        
+        <div class="contact-card">
+          <i class="fab fa-github"></i>
+          <h4>GitHub</h4>
+          <a href="https://github.com/lostboyanand" target="_blank" class="contact-detail">github.com/lostboyanand</a>
+        </div>
+      </div>
+      
+      <div class="highlight-box contact-highlight">
+        <i class="fas fa-lightbulb"></i>
+        <p>Looking for a developer who can take your AI idea from concept to production? Let's talk!</p>
+      </div>
+    </div>
+  </div>
 </div>

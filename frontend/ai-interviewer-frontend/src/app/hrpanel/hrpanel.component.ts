@@ -1,8 +1,10 @@
+
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -34,7 +36,8 @@ export class HrpanelComponent implements OnInit {
   jobRecommendations: any = null;
   loadingRecommendations = false;
 
-  constructor(private fb: FormBuilder, private http: HttpClient) {
+  constructor(private fb: FormBuilder, private http: HttpClient, private router: Router) {
+  
     this.loginForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
       password: ['', Validators.required]
@@ -44,6 +47,10 @@ export class HrpanelComponent implements OnInit {
       job_title: ['', [Validators.required]],
       job_description: ['', [Validators.required]]
     });
+  }
+
+  goHome(): void {
+    this.router.navigate(['/dashboard']);
   }
 
   ngOnInit() {}

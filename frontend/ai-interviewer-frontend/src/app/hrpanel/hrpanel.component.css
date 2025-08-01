@@ -1,3 +1,24 @@
+/* Home button styling */
+.home-btn {
+  background: #f7931e;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.7rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  margin-left: 1rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  transition: background 0.3s ease;
+}
+.home-btn i {
+  margin-right: 0.5rem;
+}
+.home-btn:hover {
+  background: #e67e00;
+}
 /* General Styles */
 .hrpanel-container {
   max-width: 1200px;
@@ -518,6 +539,14 @@ select.email-select {
   z-index: 10;
 }
 .close:hover { color: #f44336; }
+
+/* Ensure Font Awesome icons in modals are always visible and styled well */
+.modal-content i[class^="fa"] {
+  color: #f7931e !important;
+  font-size: 1.5rem !important;
+  vertical-align: middle;
+  margin-right: 0.75rem;
+}
 
 .modal-header {
   display: flex;

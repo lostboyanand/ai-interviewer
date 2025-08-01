@@ -4,6 +4,9 @@
     <div class="card-header">
       <i class="fas fa-user-shield"></i>
       <h2>HR Authentication Portal</h2>
+      <button class="btn secondary home-btn" (click)="goHome()" style="margin-left:auto;">
+        <i class="fas fa-home"></i> Home
+      </button>
     </div>
     <div class="card-body">
       <form (ngSubmit)="login()" [formGroup]="loginForm">
@@ -37,10 +40,15 @@
   <div *ngIf="loggedIn" class="dashboard-content">
     <div class="dashboard-header">
       <h2><i class="fas fa-chart-line"></i> HR Management Dashboard</h2>
-      <button class="btn danger" (click)="confirmDeleteAllData()">
-      <i class="fas fa-trash-alt"></i> Delete All Data
-      </button>
-      <button class="btn logout" (click)="logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+      <div style="display:flex; gap:1rem; align-items:center;">
+        <button class="btn secondary home-btn" (click)="goHome()">
+          <i class="fas fa-home"></i> Home
+        </button>
+        <button class="btn danger" (click)="confirmDeleteAllData()">
+          <i class="fas fa-trash-alt"></i> Delete All Data
+        </button>
+        <button class="btn logout" (click)="logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+      </div>
     </div>
 
     <!-- Main Options -->
