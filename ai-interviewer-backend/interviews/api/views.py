@@ -549,7 +549,19 @@ def delete_all_data(request):
         InterviewQuestion.objects.all().delete()
         Interview.objects.all().delete()
         Candidate.objects.all().delete()
-        return Response({'message': 'All interview data deleted.'}, status=status.HTTP_200_OK)
+
+        # Reset auto-increment primary key sequences for each model
+        from django.db import connection
+        table_names = [
+            InterviewQuestion._meta.db_table,
+            Interview._meta.db_table,
+            Candidate._meta.db_table
+        ]
+        with connection.cursor() as cursor:
+            for table in table_names:
+                cursor.execute(f"DELETE FROM sqlite_sequence WHERE name='{table}'")
+
+        return Response({'message': 'All interview data deleted and primary keys reset.'}, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
